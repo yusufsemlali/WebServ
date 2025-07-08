@@ -6,7 +6,7 @@
 
 ### Configuration Parser (2-3 Days)
 
-- [ ] Lexical Analysis:
+- [x] Lexical Analysis:
   - [x] Implement tokenizer for config files
   - [x] Handle different token types (keywords, values, operators)
   - [x] Support for comments and whitespace
