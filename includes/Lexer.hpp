@@ -14,17 +14,17 @@ public:
         ~Lexer();
 
 private:
-        const std::string &source;          // the source code to tokenize
-        size_t current;                     // the current position in the source code
-        size_t start;                       // the start of the current token
-        int line;                           // the current line number
-        bool isAtEnd() const;               // check if the end of the source code has been reached
-        char advance();                     // advance to the next character
-        char peek() const;                  // look at the next character without consuming it
-        void skipWhitespaceAndComments();   // skip whitespace and comments
-        Token scanToken();                  // scan the next token from the source code
-        Token makeWord();                   // create a token from a word (directive or value)
-        Token makeToken(TokenType::e type); // create a token of a specific type
+        const std::string &source;          
+        size_t current;                     
+        size_t start;                       
+        int line;                           
+        bool isAtEnd() const;              
+        char advance();                     
+        char peek() const;                  
+        void skipWhitespaceAndComments();   
+        Token scanToken();                  
+        Token makeWord();                   
+        Token makeToken(TokenType::e type); 
 };
 
 static std::set<std::string> initDirectives()

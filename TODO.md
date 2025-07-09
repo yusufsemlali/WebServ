@@ -8,15 +8,15 @@
 
 - [x] Lexical Analysis:
   - [x] Implement tokenizer for config files
-  - [x] Handle different token types (keywords, values, operators)
+  - [x] Handle different token types (directives, values, operators)
   - [x] Support for comments and whitespace
   - [x] Error handling for invalid characters
 - [ ] Parser Implementation:
-  - [ ] Parse server blocks
-  - [ ] Parse location blocks
+  - [ ] Parse server blocks  /* kola unique directive taysotori multiple values, i used maps for now , might change later */
+  - [ ] Parse location blocks 
   - [ ] Handle nested configurations
-  - [ ] Validate configuration syntax
-  - [ ] Error reporting with line numbers
+  - [ ] Validate configuration syntax 
+  - [ ] Error reporting with line numbers  /* basic errors, i need a lot more */
 - [ ] Configuration Validation:
   - [ ] Validate server names and ports
   - [ ] Check for duplicate configurations

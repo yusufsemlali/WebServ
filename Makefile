@@ -87,7 +87,7 @@ sanitize: re
 
 valgrind: CXXFLAGS += -g
 valgrind: re
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME) 
+	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME)  $(CONFIG_FILE)
 
 
 .PHONY: all bonus clean fclean re sanitize valgrind

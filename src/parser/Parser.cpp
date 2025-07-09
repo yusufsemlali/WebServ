@@ -79,7 +79,6 @@ Config::ServerConfig Parser::parseServer()
 {
         Config::ServerConfig server;
 
-        // Consume 'server' directive
         consume(TokenType::DIRECTIVE, "Expected 'server' directive");
         consume(TokenType::LEFT_BRACE, "Expected '{' after 'server'");
 
@@ -171,13 +170,10 @@ void Parser::error(const std::string &message) const
 {
         Token current_token = peek();
 
-        // Convert line number to string (C++98 compatible)
         std::ostringstream oss;
         oss << current_token.line;
 
-        std::string error_msg = "Parser error at line " +
-                                oss.str() +
-                                ": " + message;
+        std::string error_msg = "Parser error at line " + oss.str() + ": " + message;
 
         if (!isAtEnd())
         {

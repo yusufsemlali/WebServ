@@ -23,7 +23,6 @@ Config parse(const std::string &filePath)
         Lexer lexer(content);
         std::vector<Token> tokens = lexer.tokenize();
 
-        // Create parser and parse the tokens
         Parser parser(tokens);
         Config config = parser.parseConfig();
 
