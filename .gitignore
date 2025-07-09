@@ -1,0 +1,45 @@
+# Compiled object files
+*.o
+*.d
+*.a
+
+# Executables
+webserv
+
+# Build directories
+/build/
+
+# Dependency files
+*.dep
+
+# Editor/OS files
+*~
+*.swp
+.DS_Store
+.vscode/
+.idea/
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Test scripts output
+*.out
+
+# Ignore core dumps
+core
+core.*
+
+# Ignore user-specific config
+*.user
+
+# Ignore backup files
+*.bak
+
+# Ignore test results
+*.gcda
+*.gcno
+*.gcov
+
+# accomplishemnts
+ACCOMPLISHMENTS.md

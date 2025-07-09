@@ -1,11 +1,8 @@
 NAME := libparser.a
 
-
 INCLUDES := -I../../includes/
 
-
-SRCS := parser.cpp config.cpp Lexer.cpp Parser.cpp 
-
+SRCS :=  $(wildcard *.cpp)
 
 OBJS := $(SRCS:.cpp=.o)
 DEPS := $(SRCS:.cpp=.d)

@@ -79,7 +79,6 @@ Config::ServerConfig Parser::parseServer()
 {
         Config::ServerConfig server;
 
-        // Consume 'server' directive
         consume(TokenType::DIRECTIVE, "Expected 'server' directive");
         consume(TokenType::LEFT_BRACE, "Expected '{' after 'server'");
 
@@ -113,10 +112,8 @@ Config::LocationConfig Parser::parseLocation()
 {
         Config::LocationConfig location;
 
-        // Consume 'location' directive
         consume(TokenType::DIRECTIVE, "Expected 'location' directive");
 
-        // Get the path
         if (check(TokenType::VALUE))
         {
                 location.path = advance().lexeme;
@@ -159,25 +156,30 @@ void Parser::parseDirective(std::map<std::string, std::vector<std::string> > &di
                 error("Expected value after directive '" + directiveName + "'");
         }
 
-        std::string value = advance().lexeme;
+        // Collect all values until we hit a semicolon
+        std::vector<std::string> values;
+        while (check(TokenType::VALUE))
+        {
+                values.push_back(advance().lexeme);
+        }
 
-        consume(TokenType::SEMICOLON, "Expected ';' after directive value");
+        consume(TokenType::SEMICOLON, "Expected ';' after directive value(s)");
 
-        // Add the value to the directive (supports multiple values)
-        directives[directiveName].push_back(value);
+        // Add all values to the directive (supports multiple values and duplicate directives)
+        for (size_t i = 0; i < values.size(); ++i)
+        {
+                directives[directiveName].push_back(values[i]);
+        }
 }
 
 void Parser::error(const std::string &message) const
 {
         Token current_token = peek();
 
-        // Convert line number to string (C++98 compatible)
         std::ostringstream oss;
         oss << current_token.line;
 
-        std::string error_msg = "Parser error at line " +
-                                oss.str() +
-                                ": " + message;
+        std::string error_msg = "Parser error at line " + oss.str() + ": " + message;
 
         if (!isAtEnd())
         {

@@ -4,7 +4,7 @@ NAME := libcore.a
 INCLUDES := -I../../includes/
 
 
-SRCS := core.cpp 
+SRCS := $(wildcard *.cpp)
 
 
 OBJS := $(SRCS:.cpp=.o)

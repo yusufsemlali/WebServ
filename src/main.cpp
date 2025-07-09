@@ -1,36 +1,45 @@
 #include "core.hpp"
 #include <iostream>
 #include <stdexcept>
+#ifdef DEBUG
+#include "debug.hpp"
+#endif
 
 int main(int argc, char *argv[])
 {
-    // 1. Check for the correct number of arguments
     if (argc != 2)
     {
-        // Provide usage instructions if the input is incorrect
-        std::cerr << "Usage: " << argv[0] << " <path_to_config_file>" << std::endl;
-        return 1; // Return a non-zero value to indicate an error
+        std::cerr << "Usage: " << argv[0] << " <config_file>" << std::endl;
+        return 1;
     }
-
-    // 2. Get the file path from the command line
-    std::string configFilePath = argv[1];
 
     try
     {
-        // 3. Call your parsing library
-        Config serverConfig = parse(configFilePath);
-
-        // If parsing is successful, proceed with server setup
+        Config config = parse(argv[1]);
         std::cout << "Configuration file parsed successfully." << std::endl;
 
-        // TODO: Add your web server's startup logic here, using the 'serverConfig' object.
+        // Parse and validate the configuration
+        config.validateAndParseConfig();
+
+#ifdef DEBUG
+        printRawConfig(config);
+        std::cout << "\n=== PARSED/VALIDATED CONFIGURATION ===" << std::endl;
+        printParsedConfig(config);
+        printValidationSummary(config);
+        printServerStartup(config);
+#else
+        std::cout << "Server configuration loaded. Ready to start." << std::endl;
+#endif
+
+        // Here you would start your actual web server with the config
+        // WebServer server(config);
+        // return server.run();
+
+        return 0;
     }
     catch (const std::exception &e)
     {
-        // 4. Catch any errors thrown by the parsing library (e.g., file not found, syntax error)
         std::cerr << "Error: " << e.what() << std::endl;
-        return 1; // Return an error code
+        return 1;
     }
-
-    return 0; // Return 0 to indicate success
 }
