@@ -68,10 +68,35 @@ private:
         void parseServerConfig(ServerConfig &server);
         void parseLocationConfig(LocationConfig &location);
 
+        // Strict validation methods
+        void validateDirectiveValues(const std::string &directive, const std::vector<std::string> &values);
+        void validateHttpMethods(const std::vector<std::string> &methods);
+        void validateListenValue(const std::string &value);
+        void validatePortNumber(int port);
+        void validateHostname(const std::string &host);
+        void validateFilePath(const std::string &path);
+        void validateServerName(const std::string &serverName);
+        void validateErrorCode(int errorCode);
+        void validateClientSize(const std::string &value);
+        void validateAutoindexValue(const std::string &value);
+        void validateReturnValue(const std::string &value);
+        void validateCgiPath(const std::string &path);
+
         // Helper parsing methods
         ListenConfig parseListenDirective(const std::string &value);
         std::set<std::string> parseMethodsDirective(const std::vector<std::string> &values);
         size_t parseClientSizeDirective(const std::string &value);
         bool parseAutoindexDirective(const std::string &value);
         std::vector<ErrorPageConfig> parseErrorPageDirective(const std::vector<std::string> &values);
+
+        // Validation helpers
+        bool isValidHttpMethod(const std::string &method);
+        bool isValidErrorCode(int code);
+        bool isValidPort(int port);
+        bool isValidHostname(const std::string &host);
+        bool isValidFilePath(const std::string &path);
+        bool isValidUrl(const std::string &url);
+
+        // Error handling
+        void throwValidationError(const std::string &directive, const std::string &value, const std::string &reason);
 };
