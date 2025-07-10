@@ -43,11 +43,11 @@ std::vector<Token> Lexer::tokenize()
         {
                 skipWhitespaceAndComments();
                 if (isAtEnd())
-                        break; // Check again after skipping whitespace/comments
+                        break; 
                 start = current;
                 Token token = scanToken();
                 if (token.type == TokenType::END_OF_FILE)
-                        break; // Don't add premature EOF tokens
+                        break; 
                 tokens.push_back(token);
         }
         Token endToken;
@@ -96,7 +96,7 @@ void Lexer::skipWhitespaceAndComments()
                                 advance();
                         break;
                 case '/':
-                        advance(); // Move past the first '/'
+                        advance(); 
                         if (peek() == '/')
                         {
                                 while (peek() != '\n' && !isAtEnd())
@@ -104,7 +104,7 @@ void Lexer::skipWhitespaceAndComments()
                         }
                         else if (peek() == '*')
                         {
-                                advance(); // Move past the '*'
+                                advance(); 
                                 while (!isAtEnd())
                                 {
                                         if (peek() == '*')

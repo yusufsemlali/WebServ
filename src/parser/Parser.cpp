@@ -156,7 +156,6 @@ void Parser::parseDirective(std::map<std::string, std::vector<std::string> > &di
                 error("Expected value after directive '" + directiveName + "'");
         }
 
-        // Collect all values until we hit a semicolon
         std::vector<std::string> values;
         while (check(TokenType::VALUE))
         {
@@ -165,7 +164,6 @@ void Parser::parseDirective(std::map<std::string, std::vector<std::string> > &di
 
         consume(TokenType::SEMICOLON, "Expected ';' after directive value(s)");
 
-        // Add all values to the directive (supports multiple values and duplicate directives)
         for (size_t i = 0; i < values.size(); ++i)
         {
                 directives[directiveName].push_back(values[i]);
