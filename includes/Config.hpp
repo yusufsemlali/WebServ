@@ -8,7 +8,6 @@
 class Config
 {
 public:
-        // Parsed/validated structures
         struct ListenConfig
         {
                 std::string host;
@@ -61,7 +60,6 @@ public:
         Config() {}
         ~Config() {}
 
-        // Methods to parse/validate raw directives into typed structures
         void validateAndParseConfig();
 
 private:

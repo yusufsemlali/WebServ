@@ -2,7 +2,7 @@
 
 #include "Token.hpp"
 #include "TokenType.hpp"
-#include "config.hpp"
+#include "Config.hpp"
 #include <vector>
 #include <stdexcept>
 
