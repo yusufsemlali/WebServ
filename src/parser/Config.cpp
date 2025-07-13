@@ -5,6 +5,10 @@
 #include <cctype>
 #include <stdexcept>
 
+Config::Config() {}
+
+Config::~Config() {}
+
 void Config::validateAndParseConfig()
 {
         if (servers.empty())

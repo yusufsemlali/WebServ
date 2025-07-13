@@ -4,7 +4,6 @@
 *.a
 
 # Executables
-webserv
 
 # Build directories
 /build/
@@ -25,10 +24,6 @@ webserv
 
 # Test scripts output
 *.out
-
-# Ignore core dumps
-core
-core.*
 
 # Ignore user-specific config
 *.user

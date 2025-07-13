@@ -46,7 +46,7 @@ all: $(NAME)
 	./$(NAME) $(CONFIG_FILE)
 
 debug: CXXFLAGS += -DDEBUG
-debug: $(NAME)
+debug: re
 	./$(NAME) $(CONFIG_FILE)
 
 bonus: CXXFLAGS += -D BONUS

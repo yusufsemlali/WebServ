@@ -5,17 +5,13 @@
 #include "debug.hpp"
 #endif
 
-int main(int argc, char *argv[])
+int main(void)
 {
-    if (argc != 2)
-    {
-        std::cerr << "Usage: " << argv[0] << " <config_file>" << std::endl;
-        return 1;
-    }
 
     try
     {
-        Config config = parse(argv[1]);
+        const std::string configFilePath = "configs/default.conf";
+        Config config = parse(configFilePath);
         std::cout << "Configuration file parsed successfully." << std::endl;
 
         // Parse and validate the configuration
@@ -32,8 +28,8 @@ int main(int argc, char *argv[])
 #endif
 
         // Here you would start your actual web server with the config
-        // WebServer server(config);
-        // return server.run();
+        HttpServer server(config);
+        return server.start();
 
         return 0;
     }

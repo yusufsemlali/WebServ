@@ -57,8 +57,8 @@ public:
 
         std::vector<ServerConfig> servers;
 
-        Config() {}
-        ~Config() {}
+        Config();
+        ~Config();
 
         void validateAndParseConfig();
 
