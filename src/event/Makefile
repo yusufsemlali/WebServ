@@ -1,4 +1,4 @@
-NAME := libcore.a
+NAME := libevent.a
 
 INCLUDES := -I../../includes/
 
@@ -27,4 +27,3 @@ re: fclean all
 
 .PHONY: all clean fclean re
 .SECONDARY: $(OBJS) $(DEPS)
-

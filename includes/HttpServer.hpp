@@ -17,8 +17,8 @@ public:
 private:
         Config config;
         SocketManager socketManager;
-        EventLoop* eventLoop;
-        RequestHandler* requestHandler;
+        EventLoop eventLoop;
+        RequestHandler requestHandler;
         
         bool running;
         

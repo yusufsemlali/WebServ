@@ -11,6 +11,8 @@ INCLUDES     := -I./includes -I/usr/local/include
 # Directories
 SRC_DIR              := src
 CORE_DIR             := $(SRC_DIR)/core
+HTTP_DIR             := $(SRC_DIR)/http
+EVENT_DIR            := $(SRC_DIR)/event
 PARSER_DIR           := $(SRC_DIR)/parser
 DEBUG_DIR            := $(SRC_DIR)/debug
 BONUS_PARSER_DIR     := $(SRC_DIR)/bonus_parser
@@ -19,6 +21,8 @@ BONUS_PARSER_DIR     := $(SRC_DIR)/bonus_parser
 # Sources
 SRCS                 := $(SRC_DIR)/main.cpp
 CORE_SRCS            := $(wildcard $(CORE_DIR)/*.cpp)
+HTTP_SRCS            := $(wildcard $(HTTP_DIR)/*.cpp)
+EVENT_SRCS           := $(wildcard $(EVENT_DIR)/*.cpp)
 PARSER_SRCS          := $(wildcard $(PARSER_DIR)/*.cpp)
 DEBUG_SRCS           := $(wildcard $(DEBUG_DIR)/*.cpp)
 BONUS_PARSER_SRCS    := $(wildcard $(BONUS_PARSER_DIR)/*.cpp)
@@ -28,18 +32,20 @@ OBJS                 := $(SRCS:.cpp=.o)
 DEPS                 := $(OBJS:.o=.d) 
 
 # Libraries
-CORE_LIB						:= $(CORE_DIR)/libcore.a
+CORE_LIB             := $(CORE_DIR)/libcore.a
+HTTP_LIB             := $(HTTP_DIR)/libhttp.a
+EVENT_LIB            := $(EVENT_DIR)/libevent.a
 PARSER_LIB           := $(PARSER_DIR)/libparser.a
 DEBUG_LIB            := $(DEBUG_DIR)/libdebug.a
 BONUS_PARSER_LIB     := $(BONUS_PARSER_DIR)/libbonusparser.a
 
-LIBS                 := $(PARSER_LIB) $(CORE_LIB) $(DEBUG_LIB)
-BONUS_LIBS           := $(BONUS_PARSER_LIB) $(CORE_LIB) $(DEBUG_LIB)
+LIBS                 := $(PARSER_LIB) $(HTTP_LIB) $(EVENT_LIB) $(CORE_LIB) $(DEBUG_LIB)
+BONUS_LIBS           := $(BONUS_PARSER_LIB) $(HTTP_LIB) $(EVENT_LIB) $(CORE_LIB) $(DEBUG_LIB)
 
 # Library Linking
-LIB_PATH             := -L$(PARSER_DIR) -L$(CORE_DIR) -L$(DEBUG_DIR) -L/usr/local/lib
-LIB_FLAGS            := -lparser -lcore -ldebug
-BONUS_LIB_FLAGS      := -lbonusparser -lcore -ldebug
+LIB_PATH             := -L$(PARSER_DIR) -L$(HTTP_DIR) -L$(EVENT_DIR) -L$(CORE_DIR) -L$(DEBUG_DIR) -L/usr/local/lib
+LIB_FLAGS            := -lparser -lhttp -levent -lcore -ldebug
+BONUS_LIB_FLAGS      := -lbonusparser -lhttp -levent -lcore -ldebug
 
 # Targets
 all: $(NAME)
@@ -65,6 +71,12 @@ $(BONUS_NAME): $(BONUS_LIBS) $(OBJS)
 $(PARSER_LIB): $(PARSER_SRCS)
 	$(MAKE) -C $(PARSER_DIR) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS)"
 
+$(HTTP_LIB): $(HTTP_SRCS)
+	$(MAKE) -C $(HTTP_DIR) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS)"
+
+$(EVENT_LIB): $(EVENT_SRCS)
+	$(MAKE) -C $(EVENT_DIR) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS)"
+
 $(CORE_LIB): $(CORE_SRCS)
 	$(MAKE) -C $(CORE_DIR) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS)"
 
@@ -80,6 +92,8 @@ clean:
 	find . -name "*.o" -type f -delete
 	find . -name "*.d" -type f -delete
 	$(MAKE) -C $(PARSER_DIR) clean
+	$(MAKE) -C $(HTTP_DIR) clean
+	$(MAKE) -C $(EVENT_DIR) clean
 	$(MAKE) -C $(CORE_DIR) clean
 	$(MAKE) -C $(DEBUG_DIR) clean
 	# $(MAKE) -C $(BONUS_PARSER_DIR) clean
@@ -87,6 +101,8 @@ clean:
 fclean: clean
 	rm -rf $(NAME) $(BONUS_NAME)
 	$(MAKE) -C $(PARSER_DIR) fclean
+	$(MAKE) -C $(HTTP_DIR) fclean
+	$(MAKE) -C $(EVENT_DIR) fclean
 	$(MAKE) -C $(CORE_DIR) fclean
 	$(MAKE) -C $(DEBUG_DIR) fclean
 	# $(MAKE) -C $(BONUS_PARSER_DIR) fclean
