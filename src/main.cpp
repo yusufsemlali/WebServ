@@ -1,12 +1,18 @@
 #include "core.hpp"
 #include <iostream>
 #include <stdexcept>
+#include <csignal>
 #ifdef DEBUG
 #include "debug.hpp"
 #endif
 
 int main(void)
 {
+    // handle signal interupts
+    signal(SIGINT, signalHandler);
+    signal(SIGTERM, signalHandler);
+    signal(SIGQUIT, signalHandler);
+    signal(SIGPIPE, SIG_IGN); // Ignore SIGPIPE to prevent crashes on broken pipes
 
     try
     {
@@ -27,11 +33,17 @@ int main(void)
         std::cout << "Server configuration loaded. Ready to start." << std::endl;
 #endif
 
-        // Here you would start your actual web server with the config
+        // Create the HTTP server and set global pointer for signal handling
         HttpServer server(config);
-        return server.start();
-
-        return 0;
+        g_server = &server; // Set global pointer for signal handler
+        
+        std::cout << "Starting HTTP server..." << std::endl;
+        int result = server.start();
+        
+        // Clean up global pointer
+        g_server = NULL;
+        
+        return result;
     }
     catch (const std::exception &e)
     {

@@ -1,5 +1,9 @@
 #include "EventLoop.hpp"
 #include <iostream>
+#include <sys/epoll.h>
+#include <cstring>
+#include <cerrno>
+#include <unistd.h>
 
 EventLoop::EventLoop(SocketManager &socketManager, const Config &config)
     : socketManager(socketManager), config(config), epollFd(-1), running(false),
@@ -10,29 +14,43 @@ EventLoop::EventLoop(SocketManager &socketManager, const Config &config)
 
 EventLoop::~EventLoop()
 {
-    // TODO: Cleanup event loop
+    cleanup();
 }
 
 bool EventLoop::initialize()
 {
-    // TODO: Initialize event loop (epoll, kqueue, etc.)
-    return false;
+    if (!initializeEpoll())
+    {
+        return false;
+    }
+    const std::vector<int> &serverSockets = socketManager.getServerSockets();
+    for (size_t i = 0; i < serverSockets.size(); ++i)
+    {
+        if (!addToEpoll(serverSockets[i], EPOLLIN))
+        {
+            std::cerr << "Failed to add server socket to epoll: " << strerror(errno) << std::endl;
+            return false;
+        }
+    }
+    return true;
 }
 
 void EventLoop::run()
 {
-    // TODO: Main event loop
+    running = true;
+    while (running)
+    {
+        sleep(1);
+    }
 }
 
 void EventLoop::stop()
 {
     running = false;
-    // TODO: Stop event loop
 }
 
 void EventLoop::handleEvents()
 {
-    // TODO: Handle events from epoll/kqueue
 }
 
 void EventLoop::handleNewConnection(int serverFd)
@@ -81,41 +99,99 @@ void EventLoop::setMaxEvents(int maxEvents)
 
 bool EventLoop::initializeEpoll()
 {
-    // TODO: Initialize epoll
-    return false;
+    epollFd = epoll_create(1);
+    if (epollFd < 0)
+    {
+        std::cerr << "Failed to create epoll instance: " << strerror(errno) << std::endl;
+        return false;
+    }
+    return true;
 }
 
 bool EventLoop::addToEpoll(int fd, uint32_t events)
 {
-    (void)fd;
-    (void)events;
-    // TODO: Add file descriptor to epoll
-    return false;
+    epoll_event event;
+    event.events = events;
+    event.data.fd = fd;
+    if (epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &event) < 0)
+    {
+        std::cerr << "Failed to add file descriptor to epoll: " << strerror(errno) << std::endl;
+        return false;
+    }
+    return true;
 }
 
 bool EventLoop::removeFromEpoll(int fd)
 {
-    (void)fd;
-    // TODO: Remove file descriptor from epoll
-    return false;
+    if (epollFd < 0)
+    {
+        std::cerr << "Cannot remove fd from epoll: epoll instance not initialized" << std::endl;
+        return false;
+    }
+    if (fd < 0)
+    {
+        std::cerr << "Cannot remove invalid file descriptor from epoll" << std::endl;
+        return false;
+    }
+
+    if (epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL) < 0)
+    {
+        std::cerr << "Failed to remove file descriptor " << fd << " from epoll: " << strerror(errno) << std::endl;
+        return false;
+    }
+    return true;
 }
 
 bool EventLoop::modifyEpoll(int fd, uint32_t events)
 {
-    (void)fd;
-    (void)events;
-    // TODO: Modify epoll events for file descriptor
+    if (epollFd < 0)
+    {
+        std::cerr << "Cannot modify fd in epoll: epoll instance not initialized" << std::endl;
+        return false;
+    }
+
+    if (fd < 0)
+    {
+        std::cerr << "Cannot modify invalid file descriptor in epoll" << std::endl;
+        return false;
+    }
+
+    epoll_event event;
+    event.events = events;
+    event.data.fd = fd;
+    if (epoll_ctl(epollFd, EPOLL_CTL_MOD, fd, &event) < 0)
+    {
+        std::cerr << "Failed to modify file descriptor " << fd << " in epoll: " << strerror(errno) << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool EventLoop::isServerSocket(int fd) const
+{
+    const std::vector<int> &serverSockets = socketManager.getServerSockets();
+    for (size_t i = 0; i < serverSockets.size(); ++i)
+    {
+        if (serverSockets[i] == fd)
+        {
+            return true;
+        }
+    }
     return false;
 }
 
 void EventLoop::cleanup()
 {
-    // TODO: Clean up event loop resources
-}
+    running = false;
 
-bool EventLoop::isServerSocket(int fd) const
-{
-    (void)fd;
-    // TODO: Check if file descriptor is a server socket
-    return false;
+    if (epollFd != -1)
+    {
+        std::cout << "Closing epoll file descriptor " << epollFd << "..." << std::endl;
+        if (close(epollFd) < 0)
+        {
+            throw std::runtime_error("Failed to close epoll file descriptor: " + std::string(strerror(errno)));
+        }
+        epollFd = -1;
+    }
+    std::cout << "EventLoop cleanup complete." << std::endl;
 }

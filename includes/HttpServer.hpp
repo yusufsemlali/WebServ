@@ -13,6 +13,7 @@ public:
 
         int start();
         void stop();
+        void cleanup();  // Make cleanup public
 
 private:
         Config config;
@@ -24,6 +25,5 @@ private:
         
         void startServer(const Config::ServerConfig &server);
         bool initializeServers();
-        void cleanup();
 
 };

@@ -44,8 +44,8 @@ BONUS_LIBS           := $(BONUS_PARSER_LIB) $(HTTP_LIB) $(EVENT_LIB) $(CORE_LIB)
 
 # Library Linking
 LIB_PATH             := -L$(PARSER_DIR) -L$(HTTP_DIR) -L$(EVENT_DIR) -L$(CORE_DIR) -L$(DEBUG_DIR) -L/usr/local/lib
-LIB_FLAGS            := -lparser -lhttp -levent -lcore -ldebug
-BONUS_LIB_FLAGS      := -lbonusparser -lhttp -levent -lcore -ldebug
+LIB_FLAGS            := -lparser -lhttp -lcore -levent -ldebug
+BONUS_LIB_FLAGS      := -lbonusparser -lhttp -lcore -levent -ldebug
 
 # Targets
 all: $(NAME)
@@ -91,6 +91,7 @@ $(BONUS_PARSER_LIB): $(BONUS_PARSER_SRCS)
 clean:
 	find . -name "*.o" -type f -delete
 	find . -name "*.d" -type f -delete
+	rm -f valgrind*.log
 	$(MAKE) -C $(PARSER_DIR) clean
 	$(MAKE) -C $(HTTP_DIR) clean
 	$(MAKE) -C $(EVENT_DIR) clean
@@ -114,10 +115,52 @@ sanitize: CXXFLAGS += -fsanitize=address -g
 sanitize: re
 
 valgrind: CXXFLAGS += -g
-valgrind: re
-	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./$(NAME)  $(CONFIG_FILE)
+valgrind: all
+	valgrind --leak-check=full \
+		--show-leak-kinds=all \
+		--track-origins=yes \
+		--track-fds=yes \
+		--trace-children=yes \
+		--log-file=valgrind.log \
+		--verbose \
+		--error-exitcode=1 \
+		--suppressions=valgrind.supp \
+		./$(NAME) $(CONFIG_FILE)
+
+# More comprehensive valgrind check for webserv-specific issues
+valgrind-full: CXXFLAGS += -g -O0
+valgrind-full: all
+	valgrind --tool=memcheck \
+		--leak-check=full \
+		--show-leak-kinds=all \
+		--track-origins=yes \
+		--track-fds=yes \
+		--trace-children=yes \
+		--show-reachable=yes \
+		--malloc-fill=0x42 \
+		--free-fill=0x69 \
+		--verbose \
+		--log-file=valgrind-full.log \
+		--error-exitcode=1 \
+		--suppressions=valgrind.supp \
+		--gen-suppressions=all \
+		./$(NAME) $(CONFIG_FILE)
+
+# Helgrind for threading issues (if using threads)
+valgrind-helgrind: CXXFLAGS += -g -O0
+valgrind-helgrind: all
+	valgrind --tool=helgrind \
+		--track-lockorders=yes \
+		--history-level=full \
+		--conflict-cache-size=16777216 \
+		--log-file=helgrind.log \
+		./$(NAME) $(CONFIG_FILE)
+
+# Analyze valgrind output
+analyze-valgrind:
+	@./analyze_valgrind.sh
 
 
-.PHONY: all debug bonus clean fclean re sanitize valgrind
+.PHONY: all debug bonus clean fclean re sanitize valgrind valgrind-full valgrind-helgrind analyze-valgrind
 .SECONDARY: $(OBJS)
 

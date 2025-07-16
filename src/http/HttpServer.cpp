@@ -1,9 +1,12 @@
 #include "HttpServer.hpp"
 #include <iostream>
 
-HttpServer::HttpServer(Config &config) : config(config), eventLoop(socketManager, config), requestHandler(config), running(false) {}
+HttpServer::HttpServer(Config &config) : config(config), socketManager(), eventLoop(socketManager, config), requestHandler(config), running(false) {}
 
-HttpServer::~HttpServer() { cleanup(); }
+HttpServer::~HttpServer()
+{
+        cleanup();
+}
 
 int HttpServer::start()
 {
@@ -73,5 +76,8 @@ bool HttpServer::initializeServers()
 
 void HttpServer::cleanup()
 {
+        std::cout << "Cleaning up HTTP server..." << std::endl;
+        eventLoop.cleanup();
         socketManager.closeAllSockets();
+        std::cout << "HTTP server cleanup complete." << std::endl;
 }

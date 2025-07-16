@@ -1,0 +1,56 @@
+# Valgrind suppressions for webserv
+# This file suppresses known false positives and system-related issues
+
+{
+   glibc_dlopen_worker_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:_dl_open_worker
+}
+
+{
+   glibc_dlopen_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   ...
+   fun:dl_open_worker
+}
+
+{
+   glibc_getaddrinfo_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:getaddrinfo
+}
+
+{
+   glibc_gethostbyname_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:gethostbyname*
+}
+
+{
+   libstdc++_static_init
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   ...
+   fun:__static_initialization_and_destruction*
+}
+
+{
+   epoll_create_fd
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   ...
+   fun:epoll_create*
+}

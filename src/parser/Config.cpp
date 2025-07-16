@@ -172,7 +172,7 @@ Config::ListenConfig Config::parseListenDirective(const std::string &value)
 {
         ListenConfig config;
         config.host = "0.0.0.0"; // Default
-        config.port = 80;        // Default
+        config.port = 8080;        // Default
         config.isDefault = false;
 
         if (value.find(':') != std::string::npos)

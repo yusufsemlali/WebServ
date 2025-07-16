@@ -15,6 +15,7 @@ public:
     bool initialize();
     void run();
     void stop();
+    void cleanup();  // Add cleanup to public interface
     
     // Event handling
     void handleEvents();
@@ -50,6 +51,5 @@ private:
     bool modifyEpoll(int fd, uint32_t events);
     
     // Helper methods
-    void cleanup();
     bool isServerSocket(int fd) const;
 };
