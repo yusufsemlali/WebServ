@@ -1,6 +1,7 @@
 #include "debug.hpp"
 #include <iostream>
 #include <set>
+#include <cstdlib>
 
 void printRawConfig(const Config &config, int indent)
 {
@@ -227,11 +228,12 @@ void validateConfigCompliance(const Config &config)
                 for (size_t j = 0; j < server.listenConfigs.size(); ++j)
                 {
                         const Config::ListenConfig &listen = server.listenConfigs[j];
-                        if (listen.port < 1 || listen.port > 65535)
+                        int portNum = atoi(listen.port.c_str());
+                        if (portNum < 1 || portNum > 65535)
                         {
                                 std::cout << "  ERROR: Invalid port number " << listen.port << std::endl;
                         }
-                        else if (listen.port < 1024)
+                        else if (portNum < 1024)
                         {
                                 std::cout << "  WARNING: Port " << listen.port << " requires root privileges" << std::endl;
                         }

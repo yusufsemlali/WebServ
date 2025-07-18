@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <cerrno>
+#include <netdb.h>
 
 SocketManager::SocketManager() {}
 
@@ -39,9 +40,21 @@ void SocketManager::closeAllSockets()
 
 bool SocketManager::acceptConnection(int serverFd)
 {
-    (void)serverFd;
-    // TODO: Accept new client connection
-    return false;
+    struct sockaddr_in clientAddr;
+    socklen_t addrLen = sizeof(clientAddr);
+    int clientFd = accept(serverFd, (struct sockaddr *)&clientAddr, &addrLen);
+    if (clientFd < 0)
+    {
+        std::cerr << "Failed to accept connection: " << strerror(errno) << std::endl;
+        return false;
+    }
+
+    // Create a new ClientConnection object
+    ClientConnection *newClient = new ClientConnection(clientFd, clientAddr);
+
+    // Store the client connection
+    clientConnections[clientFd] = newClient;
+    return true;
 }
 
 void SocketManager::closeConnection(int clientFd)
@@ -57,26 +70,30 @@ bool SocketManager::setNonBlocking(int fd)
     return false;
 }
 
-bool SocketManager::bindAndListen(int fd, const std::string &host, int port)
+bool SocketManager::bindAndListen(int fd, const std::string &host, const std::string &port)
 {
-    struct sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
+    struct addrinfo hints;
+    struct addrinfo *servinfo;
+    ft_memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE; // Use the local address
 
-    // Use custom IP parsing instead of inet_pton
-    unsigned long ip_addr = parseIpAddress(host);
-    if (ip_addr == 0 && host != "0.0.0.0")
+    int status = getaddrinfo(host.c_str(), port.c_str(), &hints, &servinfo);
+    if (status != 0)
     {
-        std::cerr << "Invalid address: " << host << std::endl;
+        std::cerr << "getaddrinfo error: " << gai_strerror(status) << std::endl;
         return false;
     }
-    addr.sin_addr.s_addr = ip_addr;
 
-    if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+    if (bind(fd, servinfo->ai_addr, servinfo->ai_addrlen) < 0)
     {
         std::cerr << "Bind failed: " << strerror(errno) << std::endl;
+        freeaddrinfo(servinfo);
         return false;
     }
+
+    freeaddrinfo(servinfo);
 
     if (listen(fd, SOMAXCONN) < 0)
     {
@@ -119,9 +136,17 @@ bool SocketManager::setSocketOptions(int fd)
     int opt = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
-        std::cerr << "Failed to set socket options: " << strerror(errno) << std::endl;
+        std::cerr << "Failed to set SO_REUSEADDR: " << strerror(errno) << std::endl;
         return false;
     }
+    
+    // Also set SO_REUSEPORT for better handling of multiple processes
+    // if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
+    // {
+    //     std::cerr << "Failed to set SO_REUSEPORT: " << strerror(errno) << std::endl;
+    //     return false;
+    // }
+    
     return true;
 }
 

@@ -1,4 +1,5 @@
 #include "ClientConnection.hpp"
+#include "utiles.hpp"
 #include <unistd.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -7,8 +8,9 @@
 #include <errno.h>
 #include <string.h>
 
-ClientConnection::ClientConnection(int socketFd)
+ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clientAddr)
     : socketFd(socketFd),
+      clientAddress(parseClientAddress(clientAddr)),
       connected(true),
       keepAlive(false),
       lastActivity(time(NULL)),
@@ -16,7 +18,6 @@ ClientConnection::ClientConnection(int socketFd)
       bytesWritten(0),
       writeOffset(0)
 {
-        parseClientAddress();
 }
 
 ClientConnection::~ClientConnection()
@@ -24,94 +25,16 @@ ClientConnection::~ClientConnection()
         close();
 }
 
-void ClientConnection::parseClientAddress()
-{
-        struct sockaddr_in addr;
-        socklen_t addrLen = sizeof(addr);
-
-        if (getpeername(socketFd, (struct sockaddr *)&addr, &addrLen) == 0)
-        {
-                clientAddress = inet_ntoa(addr.sin_addr);
-                clientAddress += ":";
-
-                // Convert port to string manually for C++98 compatibility
-                std::ostringstream portStream;
-                portStream << ntohs(addr.sin_port);
-                clientAddress += portStream.str();
-        }
-        else
-        {
-                clientAddress = "unknown";
-        }
-}
-
 bool ClientConnection::readData()
 {
-        if (!connected)
-                return false;
-
-        char buffer[MAX_BUFFER_SIZE];
-        ssize_t bytesReceived = recv(socketFd, buffer, sizeof(buffer), 0);
-
-        if (bytesReceived > 0)
-        {
-                readBuffer.append(buffer, bytesReceived);
-                bytesRead += bytesReceived;
-                updateLastActivity();
-                return processReadBuffer();
-        }
-        else if (bytesReceived == 0)
-        {
-                // Connection closed by client
-                connected = false;
-                return false;
-        }
-        else
-        {
-                // Error occurred
-                if (errno != EAGAIN && errno != EWOULDBLOCK)
-                {
-                        connected = false;
-                }
-                return false;
-        }
+        // TODO - Implement logic to read data from the client
+        return false;
 }
 
 bool ClientConnection::writeData()
 {
-        if (!connected || writeBuffer.empty())
-                return false;
-
-        size_t remainingBytes = writeBuffer.length() - writeOffset;
-        ssize_t bytesSent = send(socketFd, writeBuffer.c_str() + writeOffset, remainingBytes, 0);
-
-        if (bytesSent > 0)
-        {
-                writeOffset += bytesSent;
-                bytesWritten += bytesSent;
-                updateLastActivity();
-
-                // If all data sent, clear the buffer
-                if (writeOffset >= writeBuffer.length())
-                {
-                        writeBuffer.clear();
-                        writeOffset = 0;
-                        return true;
-                }
-                return false; // More data to send
-        }
-        else if (bytesSent == 0)
-        {
-                return false;
-        }
-        else
-        {
-                if (errno != EAGAIN && errno != EWOULDBLOCK)
-                {
-                        connected = false;
-                }
-                return false;
-        }
+        // TODO - Implement logic to write data to the client
+        return true;
 }
 
 void ClientConnection::close()
@@ -131,8 +54,8 @@ bool ClientConnection::isConnected() const
 
 bool ClientConnection::hasCompleteRequest() const
 {
-        // Check if we have a complete HTTP request
-        return readBuffer.find("\r\n\r\n") != std::string::npos;
+        // TODO - Implement logic to check if the current request is complete
+        return false;
 }
 
 HttpRequest &ClientConnection::getCurrentRequest()

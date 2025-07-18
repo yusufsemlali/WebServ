@@ -3,6 +3,30 @@
 #include <vector>
 #include <netinet/in.h> // For htonl function (allowed)
 
+std::string itoa(unsigned long value)
+{
+    std::ostringstream oss;
+    oss << value;
+    return oss.str();
+}
+
+std::string parseClientAddress(const struct sockaddr_in &clientAddr)
+{
+    unsigned long ip_addr_net = clientAddr.sin_addr.s_addr;
+
+    unsigned long ip_addr_host = ntohl(ip_addr_net);
+
+    unsigned char byte1 = (ip_addr_host >> 24) & 0xFF;
+    unsigned char byte2 = (ip_addr_host >> 16) & 0xFF;
+    unsigned char byte3 = (ip_addr_host >> 8) & 0xFF;
+    unsigned char byte4 = (ip_addr_host >> 0) & 0xFF;
+
+    return itoa(byte1) + "." +
+           itoa(byte2) + "." +
+           itoa(byte3) + "." +
+           itoa(byte4);
+}
+
 unsigned long parseIpAddress(const std::string &ip)
 {
     // Handle special cases
@@ -92,4 +116,13 @@ std::string resolveHostname(const std::string &hostname)
 
     // Default fallback
     return "127.0.0.1";
+}
+
+void ft_memset(void *ptr, int value, size_t num)
+{
+    unsigned char *p = static_cast<unsigned char *>(ptr);
+    for (size_t i = 0; i < num; ++i)
+    {
+        p[i] = static_cast<unsigned char>(value);
+    }
 }

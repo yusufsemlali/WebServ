@@ -11,7 +11,7 @@ public:
         struct ListenConfig
         {
                 std::string host;
-                int port;
+                std::string port;
                 bool isDefault;
         };
 
