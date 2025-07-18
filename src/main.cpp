@@ -33,16 +33,15 @@ int main(void)
         std::cout << "Server configuration loaded. Ready to start." << std::endl;
 #endif
 
-        // Create the HTTP server and set global pointer for signal handling
         HttpServer server(config);
-        g_server = &server; // Set global pointer for signal handler
-        
+        g_server = &server;
+
         std::cout << "Starting HTTP server..." << std::endl;
         int result = server.start();
-        
+
         // Clean up global pointer
         g_server = NULL;
-        
+
         return result;
     }
     catch (const std::exception &e)

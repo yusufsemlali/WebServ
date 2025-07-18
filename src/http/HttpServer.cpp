@@ -1,7 +1,14 @@
 #include "HttpServer.hpp"
 #include <iostream>
 
-HttpServer::HttpServer(Config &config) : config(config), socketManager(), eventLoop(socketManager, config), requestHandler(config), running(false) {}
+HttpServer::HttpServer(Config &config)
+    : config(config),
+      socketManager(),
+      eventLoop(socketManager, config),
+      requestHandler(config),
+      running(false)
+{
+}
 
 HttpServer::~HttpServer()
 {
@@ -10,13 +17,10 @@ HttpServer::~HttpServer()
 
 int HttpServer::start()
 {
-        // Initialize servers
         if (!initializeServers())
         {
                 throw std::runtime_error("Failed to initialize servers");
         }
-
-        // Initialize event loop
         if (!eventLoop.initialize())
         {
                 throw std::runtime_error("Failed to initialize event loop");

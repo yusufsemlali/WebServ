@@ -6,10 +6,13 @@
 #include <unistd.h>
 
 EventLoop::EventLoop(SocketManager &socketManager, const Config &config)
-    : socketManager(socketManager), config(config), epollFd(-1), running(false),
-      connectionTimeout(30), maxEvents(64)
+    : socketManager(socketManager),
+      config(config),
+      epollFd(-1),
+      running(false),
+      connectionTimeout(30),
+      maxEvents(64)
 {
-    // TODO: Initialize event loop
 }
 
 EventLoop::~EventLoop()
@@ -38,10 +41,6 @@ bool EventLoop::initialize()
 void EventLoop::run()
 {
     running = true;
-    while (running)
-    {
-        sleep(1);
-    }
 }
 
 void EventLoop::stop()
@@ -189,7 +188,7 @@ void EventLoop::cleanup()
         std::cout << "Closing epoll file descriptor " << epollFd << "..." << std::endl;
         if (close(epollFd) < 0)
         {
-            throw std::runtime_error("Failed to close epoll file descriptor: " + std::string(strerror(errno)));
+            std::cerr << "Warning: Failed to close epoll file descriptor: " << strerror(errno) << std::endl;
         }
         epollFd = -1;
     }

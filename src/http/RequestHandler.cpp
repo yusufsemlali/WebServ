@@ -1,9 +1,9 @@
 #include "RequestHandler.hpp"
 #include <iostream>
 
-RequestHandler::RequestHandler(const Config &config) : config(config)
+RequestHandler::RequestHandler(const Config &config)
+    : config(config)
 {
-    // TODO: Initialize request handler
 }
 
 RequestHandler::~RequestHandler()
@@ -23,7 +23,7 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     // 5. Route to appropriate handler
 }
 
-const Config::ServerConfig* RequestHandler::findServerConfig(const HttpRequest &request) const
+const Config::ServerConfig *RequestHandler::findServerConfig(const HttpRequest &request) const
 {
     (void)request;
     // TODO: Find matching server config based on Host header and server_name
@@ -32,7 +32,7 @@ const Config::ServerConfig* RequestHandler::findServerConfig(const HttpRequest &
     return NULL;
 }
 
-const Config::LocationConfig* RequestHandler::findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const
+const Config::LocationConfig *RequestHandler::findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const
 {
     (void)server;
     (void)uri;

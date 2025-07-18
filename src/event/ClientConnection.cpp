@@ -8,8 +8,13 @@
 #include <string.h>
 
 ClientConnection::ClientConnection(int socketFd)
-    : socketFd(socketFd), connected(true), keepAlive(false),
-      lastActivity(time(NULL)), bytesRead(0), bytesWritten(0), writeOffset(0)
+    : socketFd(socketFd),
+      connected(true),
+      keepAlive(false),
+      lastActivity(time(NULL)),
+      bytesRead(0),
+      bytesWritten(0),
+      writeOffset(0)
 {
         parseClientAddress();
 }

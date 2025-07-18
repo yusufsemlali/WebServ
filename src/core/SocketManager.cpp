@@ -137,7 +137,7 @@ void SocketManager::cleanup()
             std::cout << "Closing server socket " << serverSockets[i] << std::endl;
             if (close(serverSockets[i]) < 0)
             {
-                throw std::runtime_error("Failed to close server socket: " + std::string(strerror(errno)));
+                std::cerr << "Warning: Failed to close server socket: " << strerror(errno) << std::endl;
             }
         }
     }
@@ -152,7 +152,7 @@ void SocketManager::cleanup()
             std::cout << "Closing client socket " << it->first << std::endl;
             if (close(it->first) < 0)
             {
-                throw std::runtime_error("Failed to close client socket: " + std::string(strerror(errno)));
+                std::cerr << "Warning: Failed to close client socket: " << strerror(errno) << std::endl;
             }
         }
         delete it->second; // Clean up ClientConnection object
