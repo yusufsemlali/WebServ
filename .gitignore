@@ -36,5 +36,5 @@
 *.gcno
 *.gcov
 
-# accomplishemnts
-ACCOMPLISHMENTS.md
+# Ignore final build exec
+webserv
