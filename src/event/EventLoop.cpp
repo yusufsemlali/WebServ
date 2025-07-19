@@ -1,4 +1,5 @@
 #include "EventLoop.hpp"
+#include "ClientConnection.hpp"
 #include <iostream>
 #include <sys/epoll.h>
 #include <cstring>
@@ -43,8 +44,11 @@ void EventLoop::run()
     running = true;
     while (running)
     {
+
         epoll_event events[maxEvents];
         int eventCount = epoll_wait(epollFd, events, maxEvents, connectionTimeout * 1000);
+        // std::cout << "event count: " << eventCount << std::endl;
+        // std::cout << "evnet type :" << (eventCount > 0 ? "EPOLLIN" : "EPOLLOUT") << std::endl;
         if (eventCount < 0)
         {
             std::cerr << "epoll_wait error: " << strerror(errno) << std::endl;
@@ -59,6 +63,10 @@ void EventLoop::run()
             }
             else
             {
+                if (events[i].events & (EPOLLERR | EPOLLHUP))
+                {
+                    handleClientError(fd);
+                }
                 if (events[i].events & EPOLLIN)
                 {
                     handleClientRead(fd);
@@ -66,10 +74,6 @@ void EventLoop::run()
                 if (events[i].events & EPOLLOUT)
                 {
                     handleClientWrite(fd);
-                }
-                if (events[i].events & EPOLLERR)
-                {
-                    handleClientError(fd);
                 }
             }
         }
@@ -83,35 +87,50 @@ void EventLoop::stop()
 
 void EventLoop::handleNewConnection(int serverFd)
 {
-    if (!socketManager.acceptConnection(serverFd))
+    std::cout << "New connection accepted on server socket: " << serverFd << std::endl;
+    int clientFd = socketManager.acceptConnection(serverFd);
+    if (clientFd < 0)
     {
         std::cerr << "Failed to accept new connection on server socket: " << serverFd << std::endl;
         return;
     }
-    std::cout << "New connection accepted on server socket: " << serverFd << std::endl;
 
-    if (!addToEpoll(serverFd, EPOLLIN | EPOLLOUT | EPOLLERR))
+    if (!addToEpoll(clientFd, EPOLLIN | EPOLLERR | EPOLLHUP))
     {
         std::cerr << "Failed to add new client socket to epoll: " << strerror(errno) << std::endl;
+        socketManager.closeConnection(clientFd);
+        return;
     }
 }
 
 void EventLoop::handleClientRead(int clientFd)
 {
-    (void)clientFd;
-    // TODO: Handle client read event
+    ClientConnection *clientConn = socketManager.getClientConnections().at(clientFd);
+    if (!clientConn)
+    {
+        std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
+        return;
+    }
+    clientConn->readData(); 
 }
 
 void EventLoop::handleClientWrite(int clientFd)
 {
-    (void)clientFd;
+    // std::cout << "Handling write event for client FD: " << clientFd << std::endl;
+    (void)clientFd; // Suppress unused variable warning
     // TODO: Handle client write event
 }
 
 void EventLoop::handleClientError(int clientFd)
 {
-    (void)clientFd;
-    // TODO: Handle client error
+    std::cout << "Client error/disconnection detected for FD: " << clientFd << std::endl;
+
+    if (!removeFromEpoll(clientFd))
+    {
+        std::cerr << "Failed to remove client socket from epoll: " << strerror(errno) << std::endl;
+    }
+
+    socketManager.closeConnection(clientFd);
 }
 
 void EventLoop::checkTimeouts()

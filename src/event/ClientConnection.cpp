@@ -7,6 +7,7 @@
 #include <sstream>
 #include <errno.h>
 #include <string.h>
+#include <stdexcept>
 
 ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clientAddr)
     : socketFd(socketFd),
@@ -27,21 +28,89 @@ ClientConnection::~ClientConnection()
 
 bool ClientConnection::readData()
 {
-        // TODO - Implement logic to read data from the client
-        return false;
+        if (!isReadyToRead())
+        {
+                std::cerr << "Connection not ready to read" << std::endl;
+                return false;
+        }
+
+        char buffer[MAX_BUFFER_SIZE];
+
+        // Read once per epoll event - let epoll handle the scheduling
+        ssize_t bytesReadNow = recv(socketFd, buffer, sizeof(buffer), 0);
+
+        if (bytesReadNow <= 0)
+        {
+                if (bytesReadNow < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+                {
+                        // No data available right now - this is normal for non-blocking sockets
+                        return true;
+                }
+                if (bytesReadNow < 0)
+                {
+                        std::cerr << "Error reading from socket: " << strerror(errno) << std::endl;
+                        close();
+                        return false;
+                }
+                // bytesReadNow == 0 means client closed connection
+                std::cout << "Client closed connection" << std::endl;
+                close();
+                return false;
+        }
+
+        // Append the data we read
+        readBuffer.append(buffer, static_cast<size_t>(bytesReadNow));
+        bytesRead += bytesReadNow;
+        updateLastActivity(); // Update activity timestamp
+
+        // Check if we have a complete request
+        if (processReadBuffer())
+        {
+                readBuffer.clear();
+        }
+
+        return true;
 }
 
 bool ClientConnection::writeData()
 {
-        // TODO - Implement logic to write data to the client
-        return true;
+        if (!isReadyToWrite())
+        {
+                std::cerr << "Connection not ready to write" << std::endl;
+                return false;
+        }
+
+        ssize_t bytesWrittenNow = send(socketFd, writeBuffer.data() + writeOffset, writeBuffer.size() - writeOffset, 0);
+        if (bytesWrittenNow < 0)
+        {
+                std::cerr << "Error writing to socket: " << strerror(errno) << std::endl;
+                close();
+                return false;
+        }
+
+        bytesWritten += bytesWrittenNow;
+        writeOffset += bytesWrittenNow;
+        updateLastActivity(); // Update activity timestamp
+
+        // Check if we've sent everything
+        if (writeOffset >= writeBuffer.size())
+        {
+                writeBuffer.clear();
+                writeOffset = 0;
+                return true; // Complete response sent
+        }
+
+        return false; // Partial write, need to continue later
 }
 
 void ClientConnection::close()
 {
         if (socketFd >= 0)
         {
-                ::close(socketFd);
+                if (::close(socketFd) < 0)
+                {
+                        std::cerr << "Failed to close socket: " << strerror(errno) << std::endl;
+                }
                 socketFd = -1;
         }
         connected = false;
@@ -54,8 +123,8 @@ bool ClientConnection::isConnected() const
 
 bool ClientConnection::hasCompleteRequest() const
 {
-        // TODO - Implement logic to check if the current request is complete
-        return false;
+        // Check for complete HTTP request (ends with \r\n\r\n)
+        return readBuffer.find("\r\n\r\n") != std::string::npos;
 }
 
 HttpRequest &ClientConnection::getCurrentRequest()
@@ -127,7 +196,18 @@ size_t ClientConnection::getBytesWritten() const
 
 bool ClientConnection::processReadBuffer()
 {
-        // Simple implementation - just check if we have complete request
-        // In a full implementation, this would parse the HTTP request
-        return hasCompleteRequest();
+        // Check if we have a complete HTTP request
+        if (!hasCompleteRequest())
+        {
+                return false; // Not ready yet, keep accumulating data
+        }
+
+        // Parse the request and generate response
+        // For now, simple implementation:
+        std::cout << "Complete request received: " << readBuffer << std::endl;
+
+        // Generate a proper HTTP response
+        writeBuffer = "HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello, World!";
+
+        return true; // Request processed, response ready
 }

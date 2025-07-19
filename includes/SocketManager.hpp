@@ -18,7 +18,7 @@ public:
     void closeAllSockets();
 
     // Client connection management
-    bool acceptConnection(int serverFd);
+    int acceptConnection(int serverFd);
     void closeConnection(int clientFd);
 
     // Socket operations

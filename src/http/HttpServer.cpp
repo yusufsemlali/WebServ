@@ -47,7 +47,7 @@ void HttpServer::startServer(const Config::ServerConfig &server)
         for (size_t i = 0; i < server.listenConfigs.size(); ++i)
         {
                 const Config::ListenConfig &listenConfig = server.listenConfigs[i];
-                if (!socketManager.createServerSocket(listenConfig))
+                if (!socketManager.createServerSocket(listenConfig, &server))
                 {
                         std::cerr << "Failed to create server socket for "
                                   << listenConfig.host << ":" << listenConfig.port << std::endl;

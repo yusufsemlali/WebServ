@@ -45,11 +45,14 @@
 
 ### Core Webserver Execution (4-5 Days)
 
-- [ ] Socket Management:
-  - [ ] Create and bind server sockets
-  - [ ] Handle multiple server instances
-  - [ ] Implement non-blocking sockets
-  - [ ] Error handling for socket operations
+- [x] Socket Management:
+  - [x] Create and bind server sockets
+  - [x] Handle multiple server instances
+  - [x] Implement non-blocking sockets
+  - [x] Error handling for socket operations
+  - [x] **ADDED: ClientConnection class for connection management**
+  - [x] **ADDED: Safe data reading with buffer management**
+  - [x] **ADDED: Non-blocking socket configuration for both server and client sockets**
 - [ ] Event Loop (epoll/kqueue):
   - [ ] Implement main event loop
   - [ ] Handle new connections
