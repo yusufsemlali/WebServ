@@ -11,11 +11,16 @@
 #include <iostream>
 #include <sstream>
 
+#include "ClientConnection.hpp"
+#include "RequestHandler.hpp"  // Make sure this is included
 #include "utiles.hpp"
 
-ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clientAddr)
+ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler)
     : socketFd(socketFd),
       clientAddress(parseClientAddress(clientAddr)),
+      handleRequest(handler),
+      // currentResponse is now a member and will be default-constructed,
+      // so it's removed from the initializer list.
       connected(true),
       keepAlive(false),
       lastActivity(time(NULL)),
@@ -199,17 +204,6 @@ bool ClientConnection::processReadBuffer()
     std::cout << "Complete request received: " << readBuffer << std::endl;
     if (currentRequest.parseRequest(readBuffer))
     {
-        currentResponse.reset();
-        currentResponse.setStatus(200, "OK");
-        currentResponse.setHeader("Content-Type", "text/html");
-
-        // Serve static file or handle request
-        serveStaticFile(currentRequest.getUri());
-    }
-    else
-    {
-        // Handle parse error (e.g., set error response)
-        currentResponse.setStatus(400, "Bad Request");
     }
 
     return true;  // Request processed, response ready

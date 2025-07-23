@@ -19,212 +19,208 @@ SocketManager::SocketManager()
 
 SocketManager::~SocketManager()
 {
-  cleanup();
+    cleanup();
 }
 
 bool SocketManager::createServerSocket(const Config::ListenConfig &listenConfig, const Config::ServerConfig *serverConfig)
 {
-  int serverFd = createSocket();
-
-  if (serverFd < 0)
-  {
-    return false;
-  }
-  if (!bindAndListen(serverFd, listenConfig.host, listenConfig.port))
-  {
-    close(serverFd);
-    return false;
-  }
-  serverSockets.push_back(serverFd);
-  serverConfigs[serverFd] = serverConfig;  // Store the server config mapping
-  return true;
+    int serverFd = createSocket();
+    if (serverFd < 0)
+    {
+        return false;
+    }
+    if (!bindAndListen(serverFd, listenConfig.host, listenConfig.port))
+    {
+        close(serverFd);
+        return false;
+    }
+    serverSockets.push_back(serverFd);
+    serverConfigs[serverFd] = serverConfig;  // Store the server config mapping
+    return true;
 }
 
 void SocketManager::closeAllSockets()
 {
-  cleanup();  // Reuse the cleanup logic
+    cleanup();  // Reuse the cleanup logic
 }
 
-int SocketManager::acceptConnection(int serverFd)
+int SocketManager::acceptConnection(int serverFd, struct sockaddr_in &outClientAddr)
 {
-  struct sockaddr_in clientAddr;
-  socklen_t addrLen = sizeof(clientAddr);
-  int clientFd = accept(serverFd, (struct sockaddr *)&clientAddr, &addrLen);
-  if (clientFd < 0)
-  {
-    std::cerr << "Failed to accept connection: " << strerror(errno) << std::endl;
-    return -1;
-  }
+    socklen_t addrLen = sizeof(outClientAddr);
+    int clientFd = accept(serverFd, (struct sockaddr *)&outClientAddr, &addrLen);
+    if (clientFd < 0)
+    {
+        std::cerr << "Failed to accept connection: " << strerror(errno) << std::endl;
+        return -1;
+    }
 
-  // Set the client socket to non-blocking mode
-  if (!setNonBlocking(clientFd))
-  {
-    std::cerr << "Failed to set client socket to non-blocking mode" << std::endl;
-    close(clientFd);
-    return -1;
-  }
-
-  ClientConnection *newClient = new ClientConnection(clientFd, clientAddr);
-
-  clientConnections[clientFd] = newClient;
-  return clientFd;
+    // Set the client socket to non-blocking mode
+    if (!setNonBlocking(clientFd))
+    {
+        std::cerr << "Failed to set client socket to non-blocking mode" << std::endl;
+        close(clientFd);
+        return -1;
+    }
+    return clientFd;
 }
+
+
 
 void SocketManager::closeConnection(int clientFd)
 {
-  std::map<int, ClientConnection *>::iterator it = clientConnections.find(clientFd);
+    std::map<int, ClientConnection *>::iterator it = clientConnections.find(clientFd);
 
-  if (it == clientConnections.end())
-  {
-    std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
-    return;
-  }
+    if (it == clientConnections.end())
+    {
+        std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
+        return;
+    }
 
-  ClientConnection *clientConn = it->second;
-  clientConnections.erase(it);
+    ClientConnection *clientConn = it->second;
+    clientConnections.erase(it);
 
-  delete clientConn;
+    delete clientConn;
 }
 
 bool SocketManager::setNonBlocking(int fd)
 {
-  int flags = fcntl(fd, F_GETFL, 0);
-  if (flags < 0)
-  {
-    std::cerr << "Failed to get socket flags: " << strerror(errno) << std::endl;
-    return false;
-  }
+    int flags = fcntl(fd, F_GETFL, 0);
+    if (flags < 0)
+    {
+        std::cerr << "Failed to get socket flags: " << strerror(errno) << std::endl;
+        return false;
+    }
 
-  if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
-  {
-    std::cerr << "Failed to set socket to non-blocking: " << strerror(errno) << std::endl;
-    return false;
-  }
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
+    {
+        std::cerr << "Failed to set socket to non-blocking: " << strerror(errno) << std::endl;
+        return false;
+    }
 
-  return true;
+    return true;
 }
 
 bool SocketManager::bindAndListen(int fd, const std::string &host, const std::string &port)
 {
-  struct addrinfo hints;
-  struct addrinfo *servinfo;
-  ft_memset(&hints, 0, sizeof(hints));
-  hints.ai_family = AF_INET;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;  // Use the local address
+    struct addrinfo hints;
+    struct addrinfo *servinfo;
+    ft_memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = AI_PASSIVE;  // Use the local address
 
-  int status = getaddrinfo(host.c_str(), port.c_str(), &hints, &servinfo);
-  if (status != 0)
-  {
-    std::cerr << "getaddrinfo error: " << gai_strerror(status) << std::endl;
-    return false;
-  }
+    int status = getaddrinfo(host.c_str(), port.c_str(), &hints, &servinfo);
+    if (status != 0)
+    {
+        std::cerr << "getaddrinfo error: " << gai_strerror(status) << std::endl;
+        return false;
+    }
 
-  if (bind(fd, servinfo->ai_addr, servinfo->ai_addrlen) < 0)
-  {
-    std::cerr << "Bind failed: " << strerror(errno) << std::endl;
+    if (bind(fd, servinfo->ai_addr, servinfo->ai_addrlen) < 0)
+    {
+        std::cerr << "Bind failed: " << strerror(errno) << std::endl;
+        freeaddrinfo(servinfo);
+        return false;
+    }
+
     freeaddrinfo(servinfo);
-    return false;
-  }
 
-  freeaddrinfo(servinfo);
+    if (listen(fd, SOMAXCONN) < 0)
+    {
+        std::cerr << "Listen failed: " << strerror(errno) << std::endl;
+        return false;
+    }
 
-  if (listen(fd, SOMAXCONN) < 0)
-  {
-    std::cerr << "Listen failed: " << strerror(errno) << std::endl;
-    return false;
-  }
-
-  return true;
+    return true;
 }
 
 const std::vector<int> &SocketManager::getServerSockets() const
 {
-  return serverSockets;
+    return serverSockets;
 }
 
 const std::map<int, ClientConnection *> &SocketManager::getClientConnections() const
 {
-  return clientConnections;
+    return clientConnections;
 }
 
 const Config::ServerConfig *SocketManager::getServerConfig(int serverFd) const
 {
-  std::map<int, const Config::ServerConfig *>::const_iterator it = serverConfigs.find(serverFd);
-  if (it != serverConfigs.end())
-  {
-    return it->second;
-  }
-  return NULL;  // Server FD not found
+    std::map<int, const Config::ServerConfig *>::const_iterator it = serverConfigs.find(serverFd);
+    if (it != serverConfigs.end())
+    {
+        return it->second;
+    }
+    return NULL;  // Server FD not found
 }
 
 int SocketManager::createSocket()
 {
-  int fd = socket(AF_INET, SOCK_STREAM, 0);
-  if (fd < 0)
-  {
-    std::cerr << "Failed to create socket: " << strerror(errno) << std::endl;
-    return -1;
-  }
-  if (!setSocketOptions(fd))
-  {
-    std::cerr << "Failed to set socket options: " << strerror(errno) << std::endl;
-    close(fd);
-    return -1;
-  }
-  if (!setNonBlocking(fd))
-  {
-    std::cerr << "Failed to set server socket to non-blocking mode" << std::endl;
-    close(fd);
-    return -1;
-  }
-  return fd;
+    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (fd < 0)
+    {
+        std::cerr << "Failed to create socket: " << strerror(errno) << std::endl;
+        return -1;
+    }
+    if (!setSocketOptions(fd))
+    {
+        std::cerr << "Failed to set socket options: " << strerror(errno) << std::endl;
+        close(fd);
+        return -1;
+    }
+    if (!setNonBlocking(fd))
+    {
+        std::cerr << "Failed to set server socket to non-blocking mode" << std::endl;
+        close(fd);
+        return -1;
+    }
+    return fd;
 }
 
 bool SocketManager::setSocketOptions(int fd)
 {
-  int opt = 1;
-  if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
-  {
-    std::cerr << "Failed to set SO_REUSEADDR: " << strerror(errno) << std::endl;
-    return false;
-  }
+    int opt = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
+    {
+        std::cerr << "Failed to set SO_REUSEADDR: " << strerror(errno) << std::endl;
+        return false;
+    }
 
-  // Also set SO_REUSEPORT for better handling of multiple processes
-  // if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
-  // {
-  //     std::cerr << "Failed to set SO_REUSEPORT: " << strerror(errno) << std::endl;
-  //     return false;
-  // }
+    // Also set SO_REUSEPORT for better handling of multiple processes
+    // if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
+    // {
+    //     std::cerr << "Failed to set SO_REUSEPORT: " << strerror(errno) << std::endl;
+    //     return false;
+    // }
 
-  return true;
+    return true;
 }
 
 void SocketManager::cleanup()
 {
-  std::cout << "Cleaning up SocketManager..." << std::endl;
+    std::cout << "Cleaning up SocketManager..." << std::endl;
 
-  // Close all server sockets
-  for (size_t i = 0; i < serverSockets.size(); ++i)
-  {
-    if (serverSockets[i] != -1)
+    // Close all server sockets
+    for (size_t i = 0; i < serverSockets.size(); ++i)
     {
-      std::cout << "Closing server socket " << serverSockets[i] << std::endl;
-      if (close(serverSockets[i]) < 0)
-      {
-        std::cerr << "Warning: Failed to close server socket: " << strerror(errno) << std::endl;
-      }
+        if (serverSockets[i] != -1)
+        {
+            std::cout << "Closing server socket " << serverSockets[i] << std::endl;
+            if (close(serverSockets[i]) < 0)
+            {
+                std::cerr << "Warning: Failed to close server socket: " << strerror(errno) << std::endl;
+            }
+        }
     }
-  }
-  serverSockets.clear();
-  serverConfigs.clear();  // Clear server config mappings
+    serverSockets.clear();
+    serverConfigs.clear();  // Clear server config mappings
 
-  // Close all client connections
-  for (std::map<int, ClientConnection *>::iterator it = clientConnections.begin();
-       it != clientConnections.end(); ++it)
-  {
-    std::cout << "Closing client socket " << it->first << std::endl;
-    delete it->second;  // Destructor will close the FD
-  }
-  clientConnections.clear();
+    // Close all client connections
+    for (std::map<int, ClientConnection *>::iterator it = clientConnections.begin();
+         it != clientConnections.end(); ++it)
+    {
+        std::cout << "Closing client socket " << it->first << std::endl;
+        delete it->second;  // Destructor will close the FD
+    }
+    clientConnections.clear();
 }

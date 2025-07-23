@@ -19,7 +19,7 @@ class SocketManager
 				void closeAllSockets();
 
 				// Client connection management
-				int acceptConnection(int serverFd);
+				int acceptConnection(int serverFd, struct sockaddr_in& outClientAddr);
 				void closeConnection(int clientFd);
 
 				// Socket operations

@@ -126,7 +126,7 @@ valgrind: all
 		--verbose \
 		--error-exitcode=1 \
 		--suppressions=valgrind.supp \
-		./$(NAME) $(CONFIG_FILE)
+		./$(NAME) 
 
 # More comprehensive valgrind check for webserv-specific issues
 valgrind-full: CXXFLAGS += -g -O0
@@ -145,7 +145,7 @@ valgrind-full: all
 		--error-exitcode=1 \
 		--suppressions=valgrind.supp \
 		--gen-suppressions=all \
-		./$(NAME) $(CONFIG_FILE)
+		./$(NAME) 
 
 # Helgrind for threading issues (if using threads)
 valgrind-helgrind: CXXFLAGS += -g -O0
