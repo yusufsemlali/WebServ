@@ -1,87 +1,93 @@
 #include "HttpServer.hpp"
+
 #include <iostream>
 
-HttpServer::HttpServer(Config &config)
-    : config(config),
-      socketManager(),
-      eventLoop(socketManager, config),
-      requestHandler(config),
-      running(false)
+HttpServer::HttpServer (Config &config)
+	: config (config),
+	  socketManager (),
+	  eventLoop (socketManager, config),
+	  requestHandler (config),
+	  running (false)
 {
 }
 
-HttpServer::~HttpServer()
+HttpServer::~HttpServer ()
 {
-        cleanup();
+		cleanup ();
 }
 
-int HttpServer::start()
+int
+HttpServer::start ()
 {
-        if (!initializeServers())
-        {
-                throw std::runtime_error("Failed to initialize servers");
-        }
-        if (!eventLoop.initialize())
-        {
-                throw std::runtime_error("Failed to initialize event loop");
-        }
+		if (!initializeServers ())
+		{
+				throw std::runtime_error ("Failed to initialize servers");
+		}
+		if (!eventLoop.initialize ())
+		{
+				throw std::runtime_error ("Failed to initialize event loop");
+		}
 
-        std::cout << "HTTP Server started successfully" << std::endl;
-        running = true;
+		std::cout << "HTTP Server started successfully" << std::endl;
+		running = true;
 
-        // Start main event loop
-        eventLoop.run();
+		// Start main event loop
+		eventLoop.run ();
 
-        return 0; // Success
+		return 0; // Success
 }
 
-void HttpServer::stop()
+void
+HttpServer::stop ()
 {
-        running = false;
-        eventLoop.stop();
+		running = false;
+		eventLoop.stop ();
 }
 
-void HttpServer::startServer(const Config::ServerConfig &server)
+void
+HttpServer::startServer (const Config::ServerConfig &server)
 {
-        // Create server sockets for each listen directive
-        for (size_t i = 0; i < server.listenConfigs.size(); ++i)
-        {
-                const Config::ListenConfig &listenConfig = server.listenConfigs[i];
-                if (!socketManager.createServerSocket(listenConfig, &server))
-                {
-                        std::cerr << "Failed to create server socket for "
-                                  << listenConfig.host << ":" << listenConfig.port << std::endl;
-                }
-                else
-                {
-                        std::cout << "Server listening on "
-                                  << listenConfig.host << ":" << listenConfig.port << std::endl;
-                }
-        }
+		// Create server sockets for each listen directive
+		for (size_t i = 0; i < server.listenConfigs.size (); ++i)
+		{
+				const Config::ListenConfig &listenConfig = server.listenConfigs[i];
+				if (!socketManager.createServerSocket (listenConfig, &server))
+				{
+						std::cerr << "Failed to create server socket for "
+								  << listenConfig.host << ":" << listenConfig.port << std::endl;
+				}
+				else
+				{
+						std::cout << "Server listening on "
+								  << listenConfig.host << ":" << listenConfig.port << std::endl;
+				}
+		}
 }
 
-bool HttpServer::initializeServers()
+bool
+HttpServer::initializeServers ()
 {
-        bool success = true;
-        for (size_t i = 0; i < config.servers.size(); ++i)
-        {
-                try
-                {
-                        startServer(config.servers[i]);
-                }
-                catch (const std::exception &e)
-                {
-                        std::cerr << "Failed to start server " << (i + 1) << ": " << e.what() << std::endl;
-                        success = false;
-                }
-        }
-        return success;
+		bool success = true;
+		for (size_t i = 0; i < config.servers.size (); ++i)
+		{
+				try
+				{
+						startServer (config.servers[i]);
+				}
+				catch (const std::exception &e)
+				{
+						std::cerr << "Failed to start server " << (i + 1) << ": " << e.what () << std::endl;
+						success = false;
+				}
+		}
+		return success;
 }
 
-void HttpServer::cleanup()
+void
+HttpServer::cleanup ()
 {
-        std::cout << "Cleaning up HTTP server..." << std::endl;
-        eventLoop.cleanup();
-        socketManager.closeAllSockets();
-        std::cout << "HTTP server cleanup complete." << std::endl;
+		std::cout << "Cleaning up HTTP server..." << std::endl;
+		eventLoop.cleanup ();
+		socketManager.closeAllSockets ();
+		std::cout << "HTTP server cleanup complete." << std::endl;
 }

@@ -38,3 +38,9 @@
 
 # Ignore final build exec
 webserv
+
+# Ignore format specifiers
+.clang-format
+
+
+.cache/

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "Config.hpp"
 #include <iostream>
+
+#include "Config.hpp"
 
 // Configuration debugging functions
 void printRawConfig(const Config &config, int indent = 0);

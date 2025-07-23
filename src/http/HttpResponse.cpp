@@ -1,18 +1,17 @@
 #include "HttpResponse.hpp"
+
+#include <fstream>
 #include <iostream>
 #include <sstream>
-#include <fstream>
 
 std::string HttpResponse::serverName = "WebServ/1.0";
 
 HttpResponse::HttpResponse() : statusCode(200), statusMessage("OK")
 {
-    // TODO: Initialize HTTP response
 }
 
 HttpResponse::~HttpResponse()
 {
-    // TODO: Cleanup HTTP response
 }
 
 void HttpResponse::setStatus(int code, const std::string &message)
@@ -65,33 +64,35 @@ void HttpResponse::clearBody()
     setHeader("Content-Length", "0");
 }
 
-std::string HttpResponse::toString() const
+std::string
+HttpResponse::toString() const
 {
     std::ostringstream response;
-    
+
     // Status line
-    response << "HTTP/1.1 " << statusCode << " " << statusMessage << "\r\n";
-    
+    response << "HTTP/1.0 " << statusCode << " " << statusMessage << "\r\n";
+
     // Headers
     for (std::map<std::string, std::string>::const_iterator it = headers.begin();
          it != headers.end(); ++it)
     {
         response << it->first << ": " << it->second << "\r\n";
     }
-    
+
     // Server header
     response << "Server: " << serverName << "\r\n";
-    
+
     // Empty line
     response << "\r\n";
-    
+
     // Body
     response << body;
-    
+
     return response.str();
 }
 
-const std::string& HttpResponse::getBody() const
+const std::string &
+HttpResponse::getBody() const
 {
     return body;
 }
@@ -101,12 +102,14 @@ int HttpResponse::getStatusCode() const
     return statusCode;
 }
 
-const std::string& HttpResponse::getStatusMessage() const
+const std::string &
+HttpResponse::getStatusMessage() const
 {
     return statusMessage;
 }
 
-std::string HttpResponse::getHeader(const std::string &name) const
+std::string
+HttpResponse::getHeader(const std::string &name) const
 {
     std::map<std::string, std::string>::const_iterator it = headers.find(name);
     if (it != headers.end())
@@ -137,27 +140,45 @@ bool HttpResponse::isReady() const
     return statusCode != 0;
 }
 
-std::string HttpResponse::getDefaultStatusMessage(int code)
+std::string
+HttpResponse::getDefaultStatusMessage(int code)
 {
     switch (code)
     {
-        case 200: return "OK";
-        case 201: return "Created";
-        case 204: return "No Content";
-        case 301: return "Moved Permanently";
-        case 302: return "Found";
-        case 304: return "Not Modified";
-        case 400: return "Bad Request";
-        case 401: return "Unauthorized";
-        case 403: return "Forbidden";
-        case 404: return "Not Found";
-        case 405: return "Method Not Allowed";
-        case 413: return "Payload Too Large";
-        case 500: return "Internal Server Error";
-        case 501: return "Not Implemented";
-        case 502: return "Bad Gateway";
-        case 503: return "Service Unavailable";
-        default: return "Unknown";
+        case 200:
+            return "OK";
+        case 201:
+            return "Created";
+        case 204:
+            return "No Content";
+        case 301:
+            return "Moved Permanently";
+        case 302:
+            return "Found";
+        case 304:
+            return "Not Modified";
+        case 400:
+            return "Bad Request";
+        case 401:
+            return "Unauthorized";
+        case 403:
+            return "Forbidden";
+        case 404:
+            return "Not Found";
+        case 405:
+            return "Method Not Allowed";
+        case 413:
+            return "Payload Too Large";
+        case 500:
+            return "Internal Server Error";
+        case 501:
+            return "Not Implemented";
+        case 502:
+            return "Bad Gateway";
+        case 503:
+            return "Service Unavailable";
+        default:
+            return "Unknown";
     }
 }
 

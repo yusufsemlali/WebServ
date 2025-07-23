@@ -1,18 +1,20 @@
 #include "EventLoop.hpp"
-#include "ClientConnection.hpp"
-#include <iostream>
+
 #include <sys/epoll.h>
-#include <cstring>
-#include <cerrno>
 #include <unistd.h>
+
+#include <cerrno>
+#include <cstring>
+#include <iostream>
+
+#include "ClientConnection.hpp"
 
 EventLoop::EventLoop(SocketManager &socketManager, const Config &config)
     : socketManager(socketManager),
       config(config),
       epollFd(-1),
       running(false),
-      connectionTimeout(30),
-      maxEvents(64)
+      connectionTimeout(DEFAULT_TIMEOUT)
 {
 }
 
@@ -44,11 +46,8 @@ void EventLoop::run()
     running = true;
     while (running)
     {
-
-        epoll_event events[maxEvents];
-        int eventCount = epoll_wait(epollFd, events, maxEvents, connectionTimeout * 1000);
-        // std::cout << "event count: " << eventCount << std::endl;
-        // std::cout << "evnet type :" << (eventCount > 0 ? "EPOLLIN" : "EPOLLOUT") << std::endl;
+        epoll_event events[DEFAULT_MAX_EVENTS];
+        int eventCount = epoll_wait(epollFd, events, DEFAULT_MAX_EVENTS, connectionTimeout * 1000);
         if (eventCount < 0)
         {
             std::cerr << "epoll_wait error: " << strerror(errno) << std::endl;
@@ -111,14 +110,38 @@ void EventLoop::handleClientRead(int clientFd)
         std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
         return;
     }
-    clientConn->readData(); 
+
+    if (clientConn->readData())
+    {
+        // If data was read successfully and there's a response ready to send
+        if (clientConn->isReadyToWrite())
+        {
+            // Enable write events for this socket
+            if (!modifyEpoll(clientFd, EPOLLIN | EPOLLOUT | EPOLLERR | EPOLLHUP))
+            {
+                std::cerr << "Failed to enable write events for client FD: " << clientFd << std::endl;
+            }
+        }
+    }
 }
 
 void EventLoop::handleClientWrite(int clientFd)
 {
-    // std::cout << "Handling write event for client FD: " << clientFd << std::endl;
-    (void)clientFd; // Suppress unused variable warning
-    // TODO: Handle client write event
+    ClientConnection *clientConn = socketManager.getClientConnections().at(clientFd);
+    if (!clientConn)
+    {
+        std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
+        return;
+    }
+
+    if (clientConn->writeData())
+    {
+        // Response fully sent, disable write events
+        if (!modifyEpoll(clientFd, EPOLLIN | EPOLLERR | EPOLLHUP))
+        {
+            std::cerr << "Failed to disable write events for client FD: " << clientFd << std::endl;
+        }
+    }
 }
 
 void EventLoop::handleClientError(int clientFd)
@@ -146,11 +169,6 @@ void EventLoop::setConnectionTimeout(int seconds)
 bool EventLoop::isRunning() const
 {
     return running;
-}
-
-void EventLoop::setMaxEvents(int maxEvents)
-{
-    this->maxEvents = maxEvents;
 }
 
 bool EventLoop::initializeEpoll()

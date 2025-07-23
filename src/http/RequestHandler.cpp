@@ -1,7 +1,8 @@
 #include "RequestHandler.hpp"
+
 #include <iostream>
 
-RequestHandler::RequestHandler(const Config &config)
+RequestHandler::RequestHandler(const Config& config)
     : config(config)
 {
 }
@@ -11,7 +12,7 @@ RequestHandler::~RequestHandler()
     // TODO: Cleanup request handler
 }
 
-void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &response)
+void RequestHandler::handleRequest(const HttpRequest& request, HttpResponse& response)
 {
     (void)request;
     (void)response;
@@ -23,7 +24,7 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     // 5. Route to appropriate handler
 }
 
-const Config::ServerConfig *RequestHandler::findServerConfig(const HttpRequest &request) const
+const Config::ServerConfig* RequestHandler::findServerConfig(const HttpRequest& request) const
 {
     (void)request;
     // TODO: Find matching server config based on Host header and server_name
@@ -32,7 +33,7 @@ const Config::ServerConfig *RequestHandler::findServerConfig(const HttpRequest &
     return NULL;
 }
 
-const Config::LocationConfig *RequestHandler::findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const
+const Config::LocationConfig* RequestHandler::findLocationConfig(const Config::ServerConfig& server, const std::string& uri) const
 {
     (void)server;
     (void)uri;
@@ -40,7 +41,7 @@ const Config::LocationConfig *RequestHandler::findLocationConfig(const Config::S
     return NULL;
 }
 
-void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::processGetRequest(const HttpRequest& request, HttpResponse& response, const Config::LocationConfig& location)
 {
     (void)request;
     (void)response;
@@ -51,7 +52,7 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
     // 3. Serve file or directory listing
 }
 
-void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::processPostRequest(const HttpRequest& request, HttpResponse& response, const Config::LocationConfig& location)
 {
     (void)request;
     (void)response;
@@ -62,7 +63,7 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
     // 3. Execute CGI or handle upload
 }
 
-void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::processDeleteRequest(const HttpRequest& request, HttpResponse& response, const Config::LocationConfig& location)
 {
     (void)request;
     (void)response;
@@ -73,7 +74,7 @@ void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpRespon
     // 3. Return appropriate response
 }
 
-void RequestHandler::serveStaticFile(const std::string &filePath, HttpResponse &response)
+void RequestHandler::serveStaticFile(const std::string& filePath, HttpResponse& response)
 {
     (void)filePath;
     (void)response;
@@ -83,14 +84,14 @@ void RequestHandler::serveStaticFile(const std::string &filePath, HttpResponse &
     // 3. Read and set file content
 }
 
-void RequestHandler::serveDirectoryListing(const std::string &dirPath, HttpResponse &response)
+void RequestHandler::serveDirectoryListing(const std::string& dirPath, HttpResponse& response)
 {
     (void)dirPath;
     (void)response;
     // TODO: Generate directory listing HTML
 }
 
-void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const Config::ServerConfig &server)
+void RequestHandler::serveErrorPage(int errorCode, HttpResponse& response, const Config::ServerConfig& server)
 {
     (void)errorCode;
     (void)response;
@@ -98,7 +99,7 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
     // TODO: Serve custom error page or generate default
 }
 
-void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::executeCgi(const HttpRequest& request, HttpResponse& response, const Config::LocationConfig& location)
 {
     (void)request;
     (void)response;
@@ -109,7 +110,7 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
     // 3. Parse CGI output
 }
 
-bool RequestHandler::isMethodAllowed(const std::string &method, const Config::LocationConfig &location) const
+bool RequestHandler::isMethodAllowed(const std::string& method, const Config::LocationConfig& location) const
 {
     (void)method;
     (void)location;
@@ -117,20 +118,20 @@ bool RequestHandler::isMethodAllowed(const std::string &method, const Config::Lo
     return true; // Default allow all for now
 }
 
-bool RequestHandler::isValidRequest(const HttpRequest &request) const
+bool RequestHandler::isValidRequest(const HttpRequest& request) const
 {
     // TODO: Validate HTTP request
     return request.isValidMethod() && request.isValidVersion();
 }
 
-std::string RequestHandler::getMimeType(const std::string &filePath) const
+std::string RequestHandler::getMimeType(const std::string& filePath) const
 {
     (void)filePath;
     // TODO: Determine MIME type based on file extension
     return "text/plain";
 }
 
-std::string RequestHandler::resolveFilePath(const std::string &uri, const Config::LocationConfig &location) const
+std::string RequestHandler::resolveFilePath(const std::string& uri, const Config::LocationConfig& location) const
 {
     (void)uri;
     (void)location;
@@ -138,7 +139,7 @@ std::string RequestHandler::resolveFilePath(const std::string &uri, const Config
     return "";
 }
 
-void RequestHandler::handleRedirect(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::handleRedirect(const HttpRequest& request, HttpResponse& response, const Config::LocationConfig& location)
 {
     (void)request;
     (void)response;
@@ -146,28 +147,28 @@ void RequestHandler::handleRedirect(const HttpRequest &request, HttpResponse &re
     // TODO: Handle redirect directive
 }
 
-bool RequestHandler::fileExists(const std::string &path) const
+bool RequestHandler::fileExists(const std::string& path) const
 {
     (void)path;
     // TODO: Check if file exists
     return false;
 }
 
-bool RequestHandler::isDirectory(const std::string &path) const
+bool RequestHandler::isDirectory(const std::string& path) const
 {
     (void)path;
     // TODO: Check if path is directory
     return false;
 }
 
-bool RequestHandler::hasPermission(const std::string &path) const
+bool RequestHandler::hasPermission(const std::string& path) const
 {
     (void)path;
     // TODO: Check file permissions
     return false;
 }
 
-std::string RequestHandler::getFileExtension(const std::string &path) const
+std::string RequestHandler::getFileExtension(const std::string& path) const
 {
     // TODO: Extract file extension
     size_t pos = path.find_last_of('.');
@@ -176,7 +177,7 @@ std::string RequestHandler::getFileExtension(const std::string &path) const
     return "";
 }
 
-void RequestHandler::setErrorResponse(int statusCode, HttpResponse &response, const std::string &message)
+void RequestHandler::setErrorResponse(int statusCode, HttpResponse& response, const std::string& message)
 {
     (void)message;
     response.setStatus(statusCode, message);

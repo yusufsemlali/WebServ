@@ -49,11 +49,11 @@ BONUS_LIB_FLAGS      := -lbonusparser -lhttp -lcore -levent -ldebug
 
 # Targets
 all: $(NAME)
-	./$(NAME) $(CONFIG_FILE)
+#	 ./$(NAME)  &
 
 debug: CXXFLAGS += -DDEBUG
 debug: re
-	./$(NAME) $(CONFIG_FILE)
+# 	./$(NAME) $(CONFIG_FILE)
 
 bonus: CXXFLAGS += -D BONUS
 bonus: $(BONUS_NAME)
@@ -85,6 +85,7 @@ $(DEBUG_LIB): $(DEBUG_SRCS)
 
 $(BONUS_PARSER_LIB): $(BONUS_PARSER_SRCS)
 	$(MAKE) -C $(BONUS_PARSER_DIR) CXX="$(CXX)" CXXFLAGS="$(CXXFLAGS)"
+
 -include $(DEPS)
 
 # Clean Targets

@@ -3,24 +3,24 @@
 
 struct TokenType
 {
-        enum e
-        {
-                LEFT_BRACE,
-                RIGHT_BRACE,
-                SEMICOLON,
-                DIRECTIVE,
-                VALUE,
-                END_OF_FILE,
-                ERROR
-        };
+ enum e
+ {
+	LEFT_BRACE,
+	RIGHT_BRACE,
+	SEMICOLON,
+	DIRECTIVE,
+	VALUE,
+	END_OF_FILE,
+	ERROR
+ };
 
-        e value;
+ e value;
 
-        TokenType();
-        TokenType(e val);
+ TokenType();
+ TokenType(e val);
 
-        operator e() const;
-        TokenType &operator=(e val);
+ operator e() const;
+ TokenType &operator=(e val);
 };
 
 const char *tokenTypeToString(TokenType type);
