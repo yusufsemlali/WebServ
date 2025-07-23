@@ -1,4 +1,5 @@
 #include "RequestHandler.hpp"
+
 #include <iostream>
 
 RequestHandler::RequestHandler(const Config &config)
@@ -28,7 +29,7 @@ const Config::ServerConfig *RequestHandler::findServerConfig(const HttpRequest &
     (void)request;
     // TODO: Find matching server config based on Host header and server_name
     if (!config.servers.empty())
-        return &config.servers[0]; // Default to first server for now
+        return &config.servers[0];  // Default to first server for now
     return NULL;
 }
 
@@ -114,7 +115,7 @@ bool RequestHandler::isMethodAllowed(const std::string &method, const Config::Lo
     (void)method;
     (void)location;
     // TODO: Check if HTTP method is allowed for this location
-    return true; // Default allow all for now
+    return true;  // Default allow all for now
 }
 
 bool RequestHandler::isValidRequest(const HttpRequest &request) const

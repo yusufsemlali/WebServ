@@ -470,9 +470,9 @@ void Config::validateCgiPath(const std::string &path)
         {
                 throwValidationError("cgi_pass", path, "CGI path cannot be empty");
         }
-        if (path[0] != '/')
+        if (path[0] != '.' &&  path[1] != '/')
         {
-                throwValidationError("cgi_pass", path, "CGI path must be absolute (start with /)");
+                throwValidationError("cgi_pass", path, "CGI path must be a relative path starting with './'");
         }
 }
 
@@ -523,8 +523,8 @@ bool Config::isValidFilePath(const std::string &path)
         if (path.empty())
                 return false;
 
-        // Must start with / for absolute paths
-        if (path[0] != '/')
+        // Must start reltive path ./
+        if (path[0] != '.' || path[1] != '/')
                 return false;
 
         // Cannot contain dangerous sequences

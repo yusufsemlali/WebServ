@@ -1,7 +1,8 @@
-#include "core.hpp"
+#include <csignal>
 #include <iostream>
 #include <stdexcept>
-#include <csignal>
+
+#include "core.hpp"
 #ifdef DEBUG
 #include "debug.hpp"
 #endif
@@ -12,7 +13,7 @@ int main(void)
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     signal(SIGQUIT, signalHandler);
-    signal(SIGPIPE, SIG_IGN); // Ignore SIGPIPE to prevent crashes on broken pipes
+    signal(SIGPIPE, SIG_IGN);  // Ignore SIGPIPE to prevent crashes on broken pipes
 
     try
     {
@@ -37,12 +38,12 @@ int main(void)
         g_server = &server;
 
         std::cout << "Starting HTTP server..." << std::endl;
-        int result = server.start();
+        server.run();
 
         // Clean up global pointer
         g_server = NULL;
 
-        return result;
+        return 0;
     }
     catch (const std::exception &e)
     {

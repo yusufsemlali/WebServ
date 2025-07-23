@@ -54,9 +54,9 @@
   - [x] **ADDED: Safe data reading with buffer management**
   - [x] **ADDED: Non-blocking socket configuration for both server and client sockets**
 - [ ] Event Loop (epoll/kqueue):
-  - [ ] Implement main event loop
-  - [ ] Handle new connections
-  - [ ] Monitor socket events (read/write/error)
+  - [x] Implement main event loop
+  - [x] Handle new connections
+  - [x] Monitor socket events (read/write/error)
   - [ ] Timeout management
 - [ ] HTTP Request Processing:
   - [ ] Parse HTTP request headers
@@ -97,6 +97,6 @@
   - [ ] Memory leak detection
   - [ ] Stress testing
 - [ ] Compliance Testing:
-  - [ ] HTTP/1.1 compliance
+  - [ ] HTTP/1.0 compliance
   - [ ] Test with different browsers
   - [ ] Validate against HTTP specifications

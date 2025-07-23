@@ -1,16 +1,21 @@
 #include "SocketManager.hpp"
+
+#include <fcntl.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <cerrno>
+#include <cstring>
+#include <iostream>
+
 #include "ClientConnection.hpp"
 #include "utiles.hpp"
-#include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <cstring>
-#include <cerrno>
-#include <netdb.h>
 
-SocketManager::SocketManager() {}
+SocketManager::SocketManager()
+{
+}
 
 SocketManager::~SocketManager()
 {
@@ -30,20 +35,19 @@ bool SocketManager::createServerSocket(const Config::ListenConfig &listenConfig,
         return false;
     }
     serverSockets.push_back(serverFd);
-    serverConfigs[serverFd] = serverConfig; // Store the server config mapping
+    serverConfigs[serverFd] = serverConfig;  // Store the server config mapping
     return true;
 }
 
 void SocketManager::closeAllSockets()
 {
-    cleanup(); // Reuse the cleanup logic
+    cleanup();  // Reuse the cleanup logic
 }
 
-int SocketManager::acceptConnection(int serverFd)
+int SocketManager::acceptConnection(int serverFd, struct sockaddr_in &outClientAddr)
 {
-    struct sockaddr_in clientAddr;
-    socklen_t addrLen = sizeof(clientAddr);
-    int clientFd = accept(serverFd, (struct sockaddr *)&clientAddr, &addrLen);
+    socklen_t addrLen = sizeof(outClientAddr);
+    int clientFd = accept(serverFd, (struct sockaddr *)&outClientAddr, &addrLen);
     if (clientFd < 0)
     {
         std::cerr << "Failed to accept connection: " << strerror(errno) << std::endl;
@@ -57,12 +61,10 @@ int SocketManager::acceptConnection(int serverFd)
         close(clientFd);
         return -1;
     }
-
-    ClientConnection *newClient = new ClientConnection(clientFd, clientAddr);
-
-    clientConnections[clientFd] = newClient;
     return clientFd;
 }
+
+
 
 void SocketManager::closeConnection(int clientFd)
 {
@@ -88,13 +90,13 @@ bool SocketManager::setNonBlocking(int fd)
         std::cerr << "Failed to get socket flags: " << strerror(errno) << std::endl;
         return false;
     }
-    
+
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) < 0)
     {
         std::cerr << "Failed to set socket to non-blocking: " << strerror(errno) << std::endl;
         return false;
     }
-    
+
     return true;
 }
 
@@ -105,7 +107,7 @@ bool SocketManager::bindAndListen(int fd, const std::string &host, const std::st
     ft_memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE; // Use the local address
+    hints.ai_flags = AI_PASSIVE;  // Use the local address
 
     int status = getaddrinfo(host.c_str(), port.c_str(), &hints, &servinfo);
     if (status != 0)
@@ -149,7 +151,7 @@ const Config::ServerConfig *SocketManager::getServerConfig(int serverFd) const
     {
         return it->second;
     }
-    return NULL; // Server FD not found
+    return NULL;  // Server FD not found
 }
 
 int SocketManager::createSocket()
@@ -211,14 +213,14 @@ void SocketManager::cleanup()
         }
     }
     serverSockets.clear();
-    serverConfigs.clear(); // Clear server config mappings
+    serverConfigs.clear();  // Clear server config mappings
 
     // Close all client connections
     for (std::map<int, ClientConnection *>::iterator it = clientConnections.begin();
          it != clientConnections.end(); ++it)
     {
         std::cout << "Closing client socket " << it->first << std::endl;
-        delete it->second; // Destructor will close the FD
+        delete it->second;  // Destructor will close the FD
     }
     clientConnections.clear();
 }

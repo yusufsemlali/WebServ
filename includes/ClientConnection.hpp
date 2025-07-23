@@ -1,14 +1,16 @@
 #pragma once
 
+#include <ctime>
+#include <string>
+
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
-#include <string>
-#include <ctime>
+#include "RequestHandler.hpp"
 
 class ClientConnection
 {
-public:
-    ClientConnection(int socketFd, const struct sockaddr_in &clientAddr);
+   public:
+    ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler);
     ~ClientConnection();
 
     // Connection management
@@ -41,7 +43,7 @@ public:
     size_t getBytesRead() const;
     size_t getBytesWritten() const;
 
-private:
+   private:
     int socketFd;
     std::string clientAddress;
 
@@ -50,6 +52,8 @@ private:
 
     HttpRequest currentRequest;
     HttpResponse currentResponse;
+
+    RequestHandler &handleRequest;
 
     bool connected;
     bool keepAlive;
@@ -63,4 +67,7 @@ private:
 
     // Helper methods
     bool processReadBuffer();
+    void serveStaticFile(const std::string &requestPath);
+    std::string getContentType(const std::string &filePath);
+    void serve404();
 };

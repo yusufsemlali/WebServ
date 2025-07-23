@@ -1,29 +1,42 @@
 #pragma once
+
+#include <map>
+#include <string>
+
+#include "ClientConnection.hpp"
 #include "Config.hpp"
-#include "SocketManager.hpp"
 #include "EventLoop.hpp"
 #include "RequestHandler.hpp"
+#include "SocketManager.hpp"
 
 class HttpServer
 {
+   public:
+    HttpServer(Config &config);
+    ~HttpServer();
 
-public:
-        HttpServer(Config &config);
-        ~HttpServer();
+    void run();
+    void stop();
 
-        int start();
-        void stop();
-        void cleanup();  // Make cleanup public
+   private:
+    Config config;
+    SocketManager socketManager;
+    EventLoop eventLoop;
+    RequestHandler requestHandler;
 
-private:
-        Config config;
-        SocketManager socketManager;
-        EventLoop eventLoop;
-        RequestHandler requestHandler;
-        
-        bool running;
-        
-        void startServer(const Config::ServerConfig &server);
-        bool initializeServers();
+    bool running;
 
+    std::map<int, ClientConnection *> connections;
+
+    bool initializeServers();
+
+    void handleNewConnection(int serverFd);
+    void handleClientRead(int clientFd);
+    void handleClientWrite(int clientFd);
+    void handleClientError(int clientFd);
+
+    void closeConnection(int clientFd);
+    bool isServerSocket(int fd) const;
+
+    void checkTimeouts();
 };

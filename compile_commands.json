@@ -1,0 +1,291 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "Config.o",
+      "Config.cpp"
+    ],
+    "directory": "/home/shams/web/src/parser",
+    "file": "/home/shams/web/src/parser/Config.cpp",
+    "output": "/home/shams/web/src/parser/Config.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "Lexer.o",
+      "Lexer.cpp"
+    ],
+    "directory": "/home/shams/web/src/parser",
+    "file": "/home/shams/web/src/parser/Lexer.cpp",
+    "output": "/home/shams/web/src/parser/Lexer.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "parser.o",
+      "parser.cpp"
+    ],
+    "directory": "/home/shams/web/src/parser",
+    "file": "/home/shams/web/src/parser/parser.cpp",
+    "output": "/home/shams/web/src/parser/parser.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "Parser.o",
+      "Parser.cpp"
+    ],
+    "directory": "/home/shams/web/src/parser",
+    "file": "/home/shams/web/src/parser/Parser.cpp",
+    "output": "/home/shams/web/src/parser/Parser.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "TokenType.o",
+      "TokenType.cpp"
+    ],
+    "directory": "/home/shams/web/src/parser",
+    "file": "/home/shams/web/src/parser/TokenType.cpp",
+    "output": "/home/shams/web/src/parser/TokenType.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "HttpRequest.o",
+      "HttpRequest.cpp"
+    ],
+    "directory": "/home/shams/web/src/http",
+    "file": "/home/shams/web/src/http/HttpRequest.cpp",
+    "output": "/home/shams/web/src/http/HttpRequest.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "HttpResponse.o",
+      "HttpResponse.cpp"
+    ],
+    "directory": "/home/shams/web/src/http",
+    "file": "/home/shams/web/src/http/HttpResponse.cpp",
+    "output": "/home/shams/web/src/http/HttpResponse.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "HttpServer.o",
+      "HttpServer.cpp"
+    ],
+    "directory": "/home/shams/web/src/http",
+    "file": "/home/shams/web/src/http/HttpServer.cpp",
+    "output": "/home/shams/web/src/http/HttpServer.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "RequestHandler.o",
+      "RequestHandler.cpp"
+    ],
+    "directory": "/home/shams/web/src/http",
+    "file": "/home/shams/web/src/http/RequestHandler.cpp",
+    "output": "/home/shams/web/src/http/RequestHandler.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "ClientConnection.o",
+      "ClientConnection.cpp"
+    ],
+    "directory": "/home/shams/web/src/event",
+    "file": "/home/shams/web/src/event/ClientConnection.cpp",
+    "output": "/home/shams/web/src/event/ClientConnection.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "EventLoop.o",
+      "EventLoop.cpp"
+    ],
+    "directory": "/home/shams/web/src/event",
+    "file": "/home/shams/web/src/event/EventLoop.cpp",
+    "output": "/home/shams/web/src/event/EventLoop.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "signal_handler.o",
+      "signal_handler.cpp"
+    ],
+    "directory": "/home/shams/web/src/core",
+    "file": "/home/shams/web/src/core/signal_handler.cpp",
+    "output": "/home/shams/web/src/core/signal_handler.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "SocketManager.o",
+      "SocketManager.cpp"
+    ],
+    "directory": "/home/shams/web/src/core",
+    "file": "/home/shams/web/src/core/SocketManager.cpp",
+    "output": "/home/shams/web/src/core/SocketManager.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "utiles.o",
+      "utiles.cpp"
+    ],
+    "directory": "/home/shams/web/src/core",
+    "file": "/home/shams/web/src/core/utiles.cpp",
+    "output": "/home/shams/web/src/core/utiles.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I../../includes/",
+      "-c",
+      "-o",
+      "debug.o",
+      "debug.cpp"
+    ],
+    "directory": "/home/shams/web/src/debug",
+    "file": "/home/shams/web/src/debug/debug.cpp",
+    "output": "/home/shams/web/src/debug/debug.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-std=c++98",
+      "-ggdb",
+      "-I./includes",
+      "-I/usr/local/include",
+      "-c",
+      "-o",
+      "src/main.o",
+      "src/main.cpp"
+    ],
+    "directory": "/home/shams/web",
+    "file": "/home/shams/web/src/main.cpp",
+    "output": "/home/shams/web/src/main.o"
+  }
+]

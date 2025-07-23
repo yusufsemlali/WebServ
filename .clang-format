@@ -1,0 +1,23 @@
+BasedOnStyle: Google
+IndentWidth: 4
+TabWidth : 8
+# UseTab: Always
+BreakBeforeBraces: Allman
+AllowShortFunctionsOnASingleLine: false
+ColumnLimit: 0
+
+# IndentWidth: 8      # Logical width of one indent level
+# TabWidth: 4         # Visual width of a tab character
+# UseTab: Always      # Use tabs for indentation, spaces for alignment
+# BreakBeforeBraces: Allman
+# AllowShortIfStatementsOnASingleLine: false
+# AllowShortFunctionsOnASingleLine: None # 'None' forces braces for all functions
+# AllowShortLoopsOnASingleLine: false
+# AllowShortCaseLabelsOnASingleLine: false
+# PointerBindsToBases: true # Left
+# SpaceBeforeAssignmentOperators: true
+# SpaceBeforeParens: ControlStatements # Adds space before parens in if/for/while etc.
+# ColumnLimit: 80 # A classic for good reason, helps with side-by-side viewing
+# BinPackParameters: false # Forces parameters to break to new lines if they overflow
+# BreakBeforeBinaryOperators: None # Or 'NonAssignment' or 'All'
+# NamespaceIndentation: None # Common for Google/LLVM
