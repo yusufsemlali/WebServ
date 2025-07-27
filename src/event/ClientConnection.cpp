@@ -204,6 +204,7 @@ bool ClientConnection::processReadBuffer()
     std::cout << "Complete request received: " << readBuffer << std::endl;
     if (currentRequest.parseRequest(readBuffer))
     {
+        handleRequest.handleRequest(currentRequest, currentResponse);
     }
 
     return true;  // Request processed, response ready

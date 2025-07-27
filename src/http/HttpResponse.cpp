@@ -1,188 +1,123 @@
 #include "HttpResponse.hpp"
-
-#include <fstream>
 #include <iostream>
 #include <sstream>
+#include <fstream>
 
 std::string HttpResponse::serverName = "WebServ/1.0";
 
 HttpResponse::HttpResponse() : statusCode(200), statusMessage("OK")
 {
+    // TODO: Initialize HTTP response
 }
 
 HttpResponse::~HttpResponse()
 {
+    // TODO: Cleanup HTTP response
 }
 
 void HttpResponse::setStatus(int code, const std::string &message)
 {
-    statusCode = code;
-    if (message.empty())
-        statusMessage = getDefaultStatusMessage(code);
-    else
-        statusMessage = message;
+    // TODO: Set HTTP status code and message
+    (void)code;
+    (void)message;
 }
 
 void HttpResponse::setHeader(const std::string &name, const std::string &value)
 {
-    headers[name] = value;
+    // TODO: Set HTTP header
+    (void)name;
+    (void)value;
 }
 
 void HttpResponse::setBody(const std::string &content)
 {
-    body = content;
-    // Update Content-Length header
-    std::ostringstream oss;
-    oss << content.length();
-    setHeader("Content-Length", oss.str());
+    // TODO: Set HTTP response body
+    (void)content;
 }
 
 void HttpResponse::setBodyFromFile(const std::string &filePath)
 {
-    std::ifstream file(filePath.c_str(), std::ios::binary);
-    if (file.is_open())
-    {
-        std::ostringstream oss;
-        oss << file.rdbuf();
-        setBody(oss.str());
-        file.close();
-    }
+    // TODO: Set HTTP response body from file
+    (void)filePath;
 }
 
 void HttpResponse::appendBody(const std::string &content)
 {
-    body += content;
-    // Update Content-Length header
-    std::ostringstream oss;
-    oss << body.length();
-    setHeader("Content-Length", oss.str());
+    // TODO: Append content to HTTP response body
+    (void)content;
 }
 
 void HttpResponse::clearBody()
 {
-    body.clear();
-    setHeader("Content-Length", "0");
+    // TODO: Clear HTTP response body
 }
 
-std::string
-HttpResponse::toString() const
+std::string HttpResponse::toString() const
 {
-    std::ostringstream response;
-
-    // Status line
-    response << "HTTP/1.0 " << statusCode << " " << statusMessage << "\r\n";
-
-    // Headers
-    for (std::map<std::string, std::string>::const_iterator it = headers.begin();
-         it != headers.end(); ++it)
-    {
-        response << it->first << ": " << it->second << "\r\n";
-    }
-
-    // Server header
-    response << "Server: " << serverName << "\r\n";
-
-    // Empty line
-    response << "\r\n";
-
-    // Body
-    response << body;
-
-    return response.str();
+    // TODO: Convert HTTP response to string format
+    return "";
 }
 
-const std::string &
-HttpResponse::getBody() const
+const std::string& HttpResponse::getBody() const
 {
-    return body;
+    // TODO: Return HTTP response body
+    static std::string empty;
+    return empty;
 }
 
 int HttpResponse::getStatusCode() const
 {
-    return statusCode;
+    // TODO: Return HTTP status code
+    return 0;
 }
 
-const std::string &
-HttpResponse::getStatusMessage() const
+const std::string& HttpResponse::getStatusMessage() const
 {
-    return statusMessage;
+    // TODO: Return HTTP status message
+    static std::string empty;
+    return empty;
 }
 
-std::string
-HttpResponse::getHeader(const std::string &name) const
+std::string HttpResponse::getHeader(const std::string &name) const
 {
-    std::map<std::string, std::string>::const_iterator it = headers.find(name);
-    if (it != headers.end())
-        return it->second;
+    // TODO: Get HTTP header value by name
+    (void)name;
     return "";
 }
 
 bool HttpResponse::hasHeader(const std::string &name) const
 {
-    return headers.find(name) != headers.end();
+    // TODO: Check if HTTP header exists
+    (void)name;
+    return false;
 }
 
 void HttpResponse::removeHeader(const std::string &name)
 {
-    headers.erase(name);
+    // TODO: Remove HTTP header
+    (void)name;
 }
 
 void HttpResponse::reset()
 {
-    statusCode = 200;
-    statusMessage = "OK";
-    headers.clear();
-    body.clear();
+    // TODO: Reset HTTP response to default state
 }
 
 bool HttpResponse::isReady() const
 {
-    return statusCode != 0;
+    // TODO: Check if HTTP response is ready to send
+    return false;
 }
 
-std::string
-HttpResponse::getDefaultStatusMessage(int code)
+std::string HttpResponse::getDefaultStatusMessage(int code)
 {
-    switch (code)
-    {
-        case 200:
-            return "OK";
-        case 201:
-            return "Created";
-        case 204:
-            return "No Content";
-        case 301:
-            return "Moved Permanently";
-        case 302:
-            return "Found";
-        case 304:
-            return "Not Modified";
-        case 400:
-            return "Bad Request";
-        case 401:
-            return "Unauthorized";
-        case 403:
-            return "Forbidden";
-        case 404:
-            return "Not Found";
-        case 405:
-            return "Method Not Allowed";
-        case 413:
-            return "Payload Too Large";
-        case 500:
-            return "Internal Server Error";
-        case 501:
-            return "Not Implemented";
-        case 502:
-            return "Bad Gateway";
-        case 503:
-            return "Service Unavailable";
-        default:
-            return "Unknown";
-    }
+    // TODO: Return default status message for HTTP status code
+    (void)code;
+    return "Unknown";
 }
 
 void HttpResponse::setServerName(const std::string &name)
 {
-    serverName = name;
+    // TODO: Set server name for HTTP response
+    (void)name;
 }

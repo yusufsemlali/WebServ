@@ -15,38 +15,29 @@ HttpRequest::~HttpRequest()
 
 bool HttpRequest::parseRequest(const std::string &rawRequest)
 {
+    // Only parse the request - don't validate
     if (!parseRequestLine(rawRequest))
     {
         requestComplete = false;
         return false;
     }
 
-    // Validate method
-    if (!isValidMethod())
+    if (!parseHeaders(rawRequest))
     {
-        std::cerr << "Invalid HTTP method: " << method << std::endl;
         requestComplete = false;
         return false;
     }
 
-    if (!isValidVersion())
+    if (!parseBody(rawRequest))
     {
-        std::cerr << "Invalid HTTP version: " << version << std::endl;
         requestComplete = false;
         return false;
     }
 
-    if (!isValidUri())
-    {
-        std::cerr << "Invalid URI: " << uri << std::endl;
-        requestComplete = false;
-        return false;
-    }
-
-    // If all validations pass
     requestComplete = true;
     return true;
 }
+
 bool HttpRequest::isValidUri() const
 {
     // Must not be empty and must start with '/'
@@ -156,19 +147,188 @@ bool HttpRequest::isValidVersion() const
     return version == "HTTP/1.0" || version == "HTTP/1.1";
 }
 
-bool HttpRequest::parseRequestLine(const std::string &line)
+bool HttpRequest::parseRequestLine(const std::string &rawRequest)
 {
-    std::istringstream iss(line);
-    std::string method, uri, version;
-    if (!(iss >> method >> uri >> version))
+    // Find the first line (request line)
+    size_t firstLineEnd = rawRequest.find("\r\n");
+    if (firstLineEnd == std::string::npos)
     {
-        std::cerr << "Invalid request line: " << line << std::endl;
-        return false;
+        firstLineEnd = rawRequest.find("\n");
+        if (firstLineEnd == std::string::npos)
+        {
+            return false;  // No line ending found
+        }
+    }
+
+    std::string requestLine = rawRequest.substr(0, firstLineEnd);
+    std::istringstream iss(requestLine);
+    std::string method, fullUri, version;
+
+    if (!(iss >> method >> fullUri >> version))
+    {
+        return false;  // Failed to parse request line
     }
 
     this->method = method;
-    this->uri = uri;
     this->version = version;
 
+    // Parse URI and query string
+    parseUri(fullUri);
+
     return true;
+}
+
+bool HttpRequest::parseHeaders(const std::string &rawRequest)
+{
+    // Find start of headers (after request line)
+    size_t headerStart = rawRequest.find("\r\n");
+    if (headerStart == std::string::npos)
+    {
+        headerStart = rawRequest.find("\n");
+        if (headerStart == std::string::npos)
+        {
+            return false;
+        }
+        headerStart += 1;
+    }
+    else
+    {
+        headerStart += 2;
+    }
+
+    // Find end of headers (empty line)
+    size_t headerEnd = rawRequest.find("\r\n\r\n", headerStart);
+    if (headerEnd == std::string::npos)
+    {
+        headerEnd = rawRequest.find("\n\n", headerStart);
+        if (headerEnd == std::string::npos)
+        {
+            // No body separator found - headers go to end
+            headerEnd = rawRequest.length();
+        }
+    }
+
+    std::string headerSection = rawRequest.substr(headerStart, headerEnd - headerStart);
+
+    // Parse individual headers
+    std::istringstream headerStream(headerSection);
+    std::string line;
+
+    while (std::getline(headerStream, line))
+    {
+        // Remove \r if present
+        if (!line.empty() && line[line.length() - 1] == '\r')
+        {
+            line.erase(line.length() - 1);
+        }
+
+        if (!line.empty())
+        {
+            if (!parseHeader(line))
+            {
+                return false;
+            }
+        }
+    }
+
+    headersParsed = true;
+    return true;
+}
+
+bool HttpRequest::parseBody(const std::string &rawRequest)
+{
+    // Find body start (after headers)
+    size_t bodyStart = rawRequest.find("\r\n\r\n");
+    if (bodyStart != std::string::npos)
+    {
+        bodyStart += 4;  // Skip \r\n\r\n
+    }
+    else
+    {
+        bodyStart = rawRequest.find("\n\n");
+        if (bodyStart != std::string::npos)
+        {
+            bodyStart += 2;  // Skip \n\n
+        }
+        else
+        {
+            // No body separator found - no body
+            body.clear();
+            return true;
+        }
+    }
+
+    if (bodyStart < rawRequest.length())
+    {
+        body = rawRequest.substr(bodyStart);
+    }
+    else
+    {
+        body.clear();
+    }
+
+    return true;
+}
+
+bool HttpRequest::parseHeader(const std::string &line)
+{
+    size_t colonPos = line.find(':');
+    if (colonPos == std::string::npos)
+    {
+        return false;  // Invalid header format
+    }
+
+    std::string name = line.substr(0, colonPos);
+    std::string value = line.substr(colonPos + 1);
+
+    // Trim whitespace from value
+    size_t valueStart = value.find_first_not_of(" \t");
+    if (valueStart != std::string::npos)
+    {
+        value = value.substr(valueStart);
+    }
+    else
+    {
+        value.clear();
+    }
+
+    size_t valueEnd = value.find_last_not_of(" \t");
+    if (valueEnd != std::string::npos)
+    {
+        value = value.substr(0, valueEnd + 1);
+    }
+
+    // Convert header name to lowercase for case-insensitive lookup
+    headers[toLower(name)] = value;
+
+    return true;
+}
+
+void HttpRequest::parseUri(const std::string &fullUri)
+{
+    // Split URI and query string
+    size_t queryPos = fullUri.find('?');
+    if (queryPos != std::string::npos)
+    {
+        uri = fullUri.substr(0, queryPos);
+        query = fullUri.substr(queryPos + 1);
+    }
+    else
+    {
+        uri = fullUri;
+        query.clear();
+    }
+}
+
+std::string HttpRequest::toLower(const std::string &str) const
+{
+    std::string result = str;
+    for (size_t i = 0; i < result.length(); ++i)
+    {
+        if (result[i] >= 'A' && result[i] <= 'Z')
+        {
+            result[i] = result[i] + ('a' - 'A');
+        }
+    }
+    return result;
 }

@@ -34,7 +34,7 @@ void HttpServer::run()
     {
         throw std::runtime_error("Failed to initialize servers");
     }
-
+    //
     std::cout << "HTTP Server started successfully" << std::endl;
     running = true;
 
@@ -155,7 +155,7 @@ void HttpServer::handleClientRead(int clientFd)
         return;
     }
 
-    if (conn->isReadyToWrite())
+    // if (conn->isReadyToWrite())
     {
         eventLoop.modify(clientFd, EPOLLIN | EPOLLOUT);
     }
