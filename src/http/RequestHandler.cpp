@@ -26,20 +26,16 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
         return;
     }
 
-    // 2. Find server config based on Host header
     const Config::ServerConfig &serverConfig = findServerConfig(request);
 
-    // 3. Find location config for the URI
     const Config::LocationConfig &locationConfig = findLocationConfig(serverConfig, uri);
 
-    // 4. Check if method is allowed for this location
     if (!isMethodAllowed(method, locationConfig))
     {
         serveErrorPage(405, response, serverConfig);
         return;
     }
 
-    // 5. Route to appropriate method handler
     if (method == "GET")
     {
         processGetRequest(request, response, serverConfig, locationConfig);
@@ -60,18 +56,15 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
 
 const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &request) const
 {
-    // Extract hostname from Host header
     std::string hostHeader = request.getHeader("Host");
     std::string hostname = hostHeader;
 
-    // Remove port if present (e.g., "example.com:8080" -> "example.com")
     size_t colonPos = hostname.find(':');
     if (colonPos != std::string::npos)
     {
         hostname = hostname.substr(0, colonPos);
     }
 
-    // Find matching server config by server_name
     const std::vector<Config::ServerConfig> &servers = config.servers;
     for (size_t i = 0; i < servers.size(); ++i)
     {
@@ -85,13 +78,11 @@ const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &
         }
     }
 
-    // This should never happen if config is valid
     return servers[0];
 }
 
 const Config::LocationConfig &RequestHandler::findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const
 {
-    // Find best matching location config for URI
     const std::vector<Config::LocationConfig> &locations = server.locations;
     const Config::LocationConfig *bestMatch = NULL;
     size_t bestMatchLength = 0;
@@ -111,13 +102,6 @@ const Config::LocationConfig &RequestHandler::findLocationConfig(const Config::S
         return *bestMatch;
     }
 
-    // Return first location as default if no match found
-    if (!locations.empty())
-    {
-        return locations[0];
-    }
-
-    // This should never happen if config is valid
     return locations[0];
 }
 
@@ -202,47 +186,39 @@ bool RequestHandler::isMethodAllowed(const std::string &method, const Config::Lo
         return (method == "GET" || method == "POST" || method == "DELETE" || method == "HEAD");
     }
 
-    // Check if method is in the allowed methods set
     return location.allowedMethods.find(method) != location.allowedMethods.end();
 }
 
 bool RequestHandler::isValidRequest(const HttpRequest &request) const
 {
-    // Comprehensive request validation - single point of truth
-
-    // 1. Check if request was parsed successfully
     if (!request.isComplete())
     {
         std::cerr << "Request parsing incomplete" << std::endl;
         return false;
     }
 
-    // 2. Validate HTTP method
     if (!request.isValidMethod())
     {
         std::cerr << "Invalid HTTP method: " << request.getMethod() << std::endl;
         return false;
     }
 
-    // 3. Validate HTTP version
     if (!request.isValidVersion())
     {
         std::cerr << "Invalid HTTP version: " << request.getVersion() << std::endl;
         return false;
     }
 
-    // 4. Validate URI
     if (!request.isValidUri())
     {
         std::cerr << "Invalid URI: " << request.getUri() << std::endl;
         return false;
     }
 
-    // 5. Additional business logic validations can go here
+    // Additional business logic validations can go here
     // e.g., Content-Length validation for POST requests
     if (request.getMethod() == "POST")
     {
-        // Check if Content-Length header exists and is valid
         std::string contentLength = request.getHeader("Content-Length");
         if (contentLength.empty())
         {
