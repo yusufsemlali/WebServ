@@ -14,37 +14,102 @@ RequestHandler::~RequestHandler()
 
 void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &response)
 {
-    (void)request;
-    (void)response;
-    // TODO: Main request handling logic
+    std::string method = request.getMethod();
+    std::string uri = request.getUri();
+
+    std::cout << "Processing " << method << " request for " << uri << std::endl;
+
     // 1. Validate request
-    // 2. Find server config
-    // 3. Find location config
-    // 4. Check method permissions
-    // 5. Route to appropriate handler
+    if (!isValidRequest(request))
+    {
+        setErrorResponse(400, response, "Bad Request");
+        return;
+    }
+
+    const Config::ServerConfig &serverConfig = findServerConfig(request);
+
+    const Config::LocationConfig &locationConfig = findLocationConfig(serverConfig, uri);
+
+    if (!isMethodAllowed(method, locationConfig))
+    {
+        serveErrorPage(405, response, serverConfig);
+        return;
+    }
+
+    if (method == "GET")
+    {
+        processGetRequest(request, response, serverConfig, locationConfig);
+    }
+    else if (method == "POST")
+    {
+        processPostRequest(request, response, serverConfig, locationConfig);
+    }
+    else if (method == "DELETE")
+    {
+        processDeleteRequest(request, response, serverConfig, locationConfig);
+    }
+    else
+    {
+        serveErrorPage(501, response, serverConfig);
+    }
 }
 
-const Config::ServerConfig *RequestHandler::findServerConfig(const HttpRequest &request) const
+const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &request) const
 {
-    (void)request;
-    // TODO: Find matching server config based on Host header and server_name
-    if (!config.servers.empty())
-        return &config.servers[0];  // Default to first server for now
-    return NULL;
+    std::string hostHeader = request.getHeader("Host");
+    std::string hostname = hostHeader;
+
+    size_t colonPos = hostname.find(':');
+    if (colonPos != std::string::npos)
+    {
+        hostname = hostname.substr(0, colonPos);
+    }
+
+    const std::vector<Config::ServerConfig> &servers = config.servers;
+    for (size_t i = 0; i < servers.size(); ++i)
+    {
+        const std::vector<std::string> &serverNames = servers[i].serverNames;
+        for (size_t j = 0; j < serverNames.size(); ++j)
+        {
+            if (serverNames[j] == hostname)
+            {
+                return servers[i];
+            }
+        }
+    }
+
+    return servers[0];
 }
 
-const Config::LocationConfig *RequestHandler::findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const
+const Config::LocationConfig &RequestHandler::findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const
 {
-    (void)server;
-    (void)uri;
-    // TODO: Find best matching location config for URI
-    return NULL;
+    const std::vector<Config::LocationConfig> &locations = server.locations;
+    const Config::LocationConfig *bestMatch = NULL;
+    size_t bestMatchLength = 0;
+
+    for (size_t i = 0; i < locations.size(); ++i)
+    {
+        const std::string &locationPath = locations[i].path;
+        if (uri.find(locationPath) == 0 && locationPath.length() > bestMatchLength)
+        {
+            bestMatch = &locations[i];
+            bestMatchLength = locationPath.length();
+        }
+    }
+
+    if (bestMatch)
+    {
+        return *bestMatch;
+    }
+
+    return locations[0];
 }
 
-void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location)
 {
     (void)request;
     (void)response;
+    (void)server;
     (void)location;
     // TODO: Handle GET request
     // 1. Resolve file path
@@ -52,21 +117,24 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
     // 3. Serve file or directory listing
 }
 
-void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location)
 {
     (void)request;
     (void)response;
+    (void)server;
     (void)location;
     // TODO: Handle POST request
+
     // 1. Check content length
     // 2. Process request body
     // 3. Execute CGI or handle upload
 }
 
-void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location)
 {
     (void)request;
     (void)response;
+    (void)server;
     (void)location;
     // TODO: Handle DELETE request
     // 1. Check permissions
@@ -112,16 +180,54 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
 
 bool RequestHandler::isMethodAllowed(const std::string &method, const Config::LocationConfig &location) const
 {
-    (void)method;
-    (void)location;
-    // TODO: Check if HTTP method is allowed for this location
-    return true;  // Default allow all for now
+    // If no methods are specified, allow all common methods
+    if (location.allowedMethods.empty())
+    {
+        return (method == "GET" || method == "POST" || method == "DELETE" || method == "HEAD");
+    }
+
+    return location.allowedMethods.find(method) != location.allowedMethods.end();
 }
 
 bool RequestHandler::isValidRequest(const HttpRequest &request) const
 {
-    // TODO: Validate HTTP request
-    return request.isValidMethod() && request.isValidVersion();
+    if (!request.isComplete())
+    {
+        std::cerr << "Request parsing incomplete" << std::endl;
+        return false;
+    }
+
+    if (!request.isValidMethod())
+    {
+        std::cerr << "Invalid HTTP method: " << request.getMethod() << std::endl;
+        return false;
+    }
+
+    if (!request.isValidVersion())
+    {
+        std::cerr << "Invalid HTTP version: " << request.getVersion() << std::endl;
+        return false;
+    }
+
+    if (!request.isValidUri())
+    {
+        std::cerr << "Invalid URI: " << request.getUri() << std::endl;
+        return false;
+    }
+
+    // Additional business logic validations can go here
+    // e.g., Content-Length validation for POST requests
+    if (request.getMethod() == "POST")
+    {
+        std::string contentLength = request.getHeader("Content-Length");
+        if (contentLength.empty())
+        {
+            std::cerr << "POST request missing Content-Length header" << std::endl;
+            return false;
+        }
+    }
+
+    return true;
 }
 
 std::string RequestHandler::getMimeType(const std::string &filePath) const

@@ -16,13 +16,13 @@ class RequestHandler
     void handleRequest(const HttpRequest &request, HttpResponse &response);
 
     // Route matching
-    const Config::ServerConfig *findServerConfig(const HttpRequest &request) const;
-    const Config::LocationConfig *findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const;
+    const Config::ServerConfig &findServerConfig(const HttpRequest &request) const;
+    const Config::LocationConfig &findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const;
 
     // Request processing
-    void processGetRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location);
-    void processPostRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location);
-    void processDeleteRequest(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location);
+    void processGetRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location);
+    void processPostRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location);
+    void processDeleteRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location);
 
     // File operations
     void serveStaticFile(const std::string &filePath, HttpResponse &response);

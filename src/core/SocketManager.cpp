@@ -35,7 +35,7 @@ bool SocketManager::createServerSocket(const Config::ListenConfig &listenConfig,
         return false;
     }
     serverSockets.push_back(serverFd);
-    serverConfigs[serverFd] = serverConfig;  // Store the server config mapping
+    serverConfigs[serverFd] = serverConfig;
     return true;
 }
 
@@ -63,8 +63,6 @@ int SocketManager::acceptConnection(int serverFd, struct sockaddr_in &outClientA
     }
     return clientFd;
 }
-
-
 
 void SocketManager::closeConnection(int clientFd)
 {

@@ -48,7 +48,9 @@ class HttpRequest
 	bool headersParsed;
 
 	// Parsing helpers
-	bool parseRequestLine(const std::string &line);
+	bool parseRequestLine(const std::string &rawRequest);
+	bool parseHeaders(const std::string &rawRequest);
+	bool parseBody(const std::string &rawRequest);
 	bool parseHeader(const std::string &line);
 	void parseUri(const std::string &fullUri);
 	std::string toLower(const std::string &str) const;
