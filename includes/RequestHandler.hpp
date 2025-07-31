@@ -1,55 +1,64 @@
-#pragma once
+#ifndef REQUEST_HANDLER_HPP
+#define REQUEST_HANDLER_HPP
 
 #include <string>
-
+#include <map>
+#include <ctime>
 #include "Config.hpp"
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
 
 class RequestHandler
 {
-   public:
+public:
     RequestHandler(const Config &config);
     ~RequestHandler();
 
-    // Main request processing
     void handleRequest(const HttpRequest &request, HttpResponse &response);
 
-    // Route matching
-    const Config::ServerConfig &findServerConfig(const HttpRequest &request) const;
-    const Config::LocationConfig &findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const;
+private:
+    const Config &config;
 
-    // Request processing
-    void processGetRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location);
-    void processPostRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location);
-    void processDeleteRequest(const HttpRequest &request, HttpResponse &response, const Config::ServerConfig &server, const Config::LocationConfig &location);
+    // Main request processing methods
+    void processGetRequest(const HttpRequest &request, HttpResponse &response, 
+                          const Config::ServerConfig &server, const Config::LocationConfig &location);
+    void processPostRequest(const HttpRequest &request, HttpResponse &response, 
+                           const Config::ServerConfig &server, const Config::LocationConfig &location);
+    void processDeleteRequest(const HttpRequest &request, HttpResponse &response, 
+                             const Config::ServerConfig &server, const Config::LocationConfig &location);
 
-    // File operations
+    // Content serving methods
     void serveStaticFile(const std::string &filePath, HttpResponse &response);
     void serveDirectoryListing(const std::string &dirPath, HttpResponse &response);
     void serveErrorPage(int errorCode, HttpResponse &response, const Config::ServerConfig &server);
 
-    // CGI handling
-    void executeCgi(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location);
+    // Special handling methods
+    void executeCgi(HttpResponse &response, const Config::LocationConfig &location);
+    void handleRedirect(HttpResponse &response, const Config::LocationConfig &location);
+    void handleFileUpload(const HttpRequest &request, HttpResponse &response, 
+                         const Config::ServerConfig &server, const Config::LocationConfig &location);
+    void handleFormData(const HttpRequest &request, HttpResponse &response);
 
-    // Validation
-    bool isMethodAllowed(const std::string &method, const Config::LocationConfig &location) const;
-    bool isValidRequest(const HttpRequest &request) const;
+    // Configuration resolution methods
+    const Config::ServerConfig &findServerConfig(const HttpRequest &request) const;
+    const Config::LocationConfig &findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const;
 
-    // Utility
-    std::string getMimeType(const std::string &filePath) const;
-    std::string resolveFilePath(const std::string &uri, const Config::LocationConfig &location) const;
-
-   private:
-    const Config &config;
-
-    // Helper methods
-    void handleRedirect(const HttpRequest &request, HttpResponse &response, const Config::LocationConfig &location);
+    // Path resolution and file operations
+    std::string resolveFilePath(const std::string &uri, const Config::LocationConfig &location, 
+                               const Config::ServerConfig &server) const;
     bool fileExists(const std::string &path) const;
     bool isDirectory(const std::string &path) const;
     bool hasPermission(const std::string &path) const;
-    std::string getFileExtension(const std::string &path) const;
+    bool createFile(const std::string &path, const std::string &content) const;
 
-    // Error handling
-    void setErrorResponse(int statusCode, HttpResponse &response, const std::string &message = "");
+    // Validation methods
+    bool isMethodAllowed(const std::string &method, const Config::LocationConfig &location) const;
+    bool isValidRequest(const HttpRequest &request) const;
+
+    // Utility methods
+    std::string getMimeType(const std::string &filePath) const;
+    void setErrorResponse(int statusCode, HttpResponse &response, const std::string &message);
+    std::string getCurrentTimestamp() const;
 };
+
+#endif // REQUEST_HANDLER_HPP

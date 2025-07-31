@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <set>
 
 #include "Token.hpp"
 #include "TokenType.hpp"
