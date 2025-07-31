@@ -4,51 +4,41 @@
 
 #include "core.hpp"
 
-HttpServer *g_server = NULL;
+// HttpServer *g_server = NULL;
 
-static volatile bool shutdown_in_progress = false;
+// static volatile bool shutdown_in_progress = false;
+
+volatile sig_atomic_t shutdown_requested = 0;
+volatile sig_atomic_t received_signal = 0;
 
 void signalHandler(int signal)
 {
-  // Prevent multiple signal handling
-  if (shutdown_in_progress)
-  {
-    std::cout << "\nForced shutdown..." << std::endl;
-    exit(1);
-  }
+    // Prevent multiple signal handling
+    received_signal = 128 + signal;
 
-  shutdown_in_progress = true;
-  std::cout << std::endl;  // Add newline after ^C
-
-  switch (signal)
-  {
-    case SIGINT:
-      std::cout << "Received SIGINT (Ctrl+C). Shutting down gracefully..." << std::endl;
-      break;
-    case SIGTERM:
-      std::cout << "Received SIGTERM. Shutting down gracefully..." << std::endl;
-      break;
-    case SIGQUIT:
-      std::cout << "Received SIGQUIT. Shutting down gracefully..." << std::endl;
-      break;
-    default:
-      std::cout << "Received signal " << signal << ". Shutting down gracefully..." << std::endl;
-      break;
-  }
-
-  // Safely stop the server if it exists
-  if (g_server != NULL)
-  {
-    std::cout << "Stopping HTTP server..." << std::endl;
-    try
+    if (shutdown_requested)
     {
-      g_server->stop();
-      std::cout << "Server stopped successfully." << std::endl;
+        std::cout << "\nForced shutdown..." << std::endl;
+        exit(received_signal);
     }
-    catch (const std::exception &e)
+
+    shutdown_requested = 1;
+
+    std::cout << std::endl;  // Add newline after ^C
+
+    switch (signal)
     {
-      std::cerr << "Error during server shutdown: " << e.what() << std::endl;
+        case SIGINT:
+            std::cout << "Received SIGINT (Ctrl+C). Shutting down gracefully..." << std::endl;
+            break;
+        case SIGTERM:
+            std::cout << "Received SIGTERM. Shutting down gracefully..." << std::endl;
+            break;
+        case SIGQUIT:
+            std::cout << "Received SIGQUIT. Shutting down gracefully..." << std::endl;
+            break;
+        default:
+            std::cout << "Received signal " << signal << ". Shutting down gracefully..." << std::endl;
+            break;
     }
-  }
-  std::cout << "Server shutdown complete." << std::endl;
 }

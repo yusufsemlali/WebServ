@@ -1,12 +1,10 @@
 #pragma once
 
-#include <iostream>
-#include "parser.hpp"
-#include "HttpServer.hpp"
+#include <csignal>
 
 // Global server pointer for signal handling
-extern HttpServer* g_server;
+extern volatile sig_atomic_t shutdown_requested;
+extern volatile sig_atomic_t received_signal;
 
 // Signal handler function
 void signalHandler(int signal);
-

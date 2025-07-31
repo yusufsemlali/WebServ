@@ -7,6 +7,8 @@
 #include <cstring>
 #include <iostream>
 
+#include "core.hpp"
+
 HttpServer::HttpServer(Config& config)
     : config(config),
       socketManager(),
@@ -43,6 +45,11 @@ void HttpServer::run()
 
     while (running)
     {
+        if (shutdown_requested)
+        {
+            stop();
+        };
+
         epoll_event events[MAX_EVENTS];
         int eventCount = eventLoop.wait(events, MAX_EVENTS, TIMEOUT_MS);
 

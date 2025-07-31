@@ -1,8 +1,11 @@
 #include <csignal>
 #include <iostream>
-#include <stdexcept>
 
+#include "Config.hpp"
+#include "HttpServer.hpp"
 #include "core.hpp"
+#include "parser.hpp"
+
 #ifdef DEBUG
 #include "debug.hpp"
 #endif
@@ -33,16 +36,22 @@ int main(void)
 #else
         std::cout << "Server configuration loaded. Ready to start." << std::endl;
 #endif
+        if (shutdown_requested)
+        {
+            std::cout << "Server shutdown complete." << std::endl;
+            return received_signal;
+        }
+        {
+            HttpServer server(config);
 
-        HttpServer server(config);
-        g_server = &server;
-
-        std::cout << "Starting HTTP server..." << std::endl;
-        server.run();
-
-        // Clean up global pointer
-        g_server = NULL;
-
+            std::cout << "Starting HTTP server..." << std::endl;
+            server.run();
+        }
+        if (shutdown_requested)
+        {
+            std::cout << "Server shutdown complete." << std::endl;
+            return received_signal;
+        }
         return 0;
     }
     catch (const std::exception &e)

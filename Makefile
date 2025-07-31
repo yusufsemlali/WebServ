@@ -141,7 +141,7 @@ valgrind-full: all
 		--malloc-fill=0x42 \
 		--free-fill=0x69 \
 		--verbose \
-		--log-file=valgrind-full.log \
+		--log-file=valgrind.log \
 		--error-exitcode=1 \
 		--suppressions=valgrind.supp \
 		--gen-suppressions=all \
