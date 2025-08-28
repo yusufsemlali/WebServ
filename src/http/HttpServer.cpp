@@ -1,4 +1,3 @@
-
 #include "HttpServer.hpp"
 
 #include <netinet/in.h>
@@ -34,7 +33,7 @@ void HttpServer::run()
     {
         throw std::runtime_error("Failed to initialize servers");
     }
-    //
+    
     std::cout << "HTTP Server started successfully" << std::endl;
     running = true;
 
@@ -56,6 +55,8 @@ void HttpServer::run()
         for (int i = 0; i < eventCount; ++i)
         {
             int fd = events[i].data.fd;
+            std::cout << "Event on FD " << fd << " with events: " << events[i].events << std::endl;
+            
             if (isServerSocket(fd))
             {
                 handleNewConnection(fd);
@@ -135,7 +136,6 @@ void HttpServer::handleNewConnection(int serverFd)
     std::cout << "New connection accepted on fd: " << clientFd << std::endl;
 
     connections[clientFd] = new ClientConnection(clientFd, clientAddr, requestHandler);
-    // ClientConnection(int socketFd, const struct sockaddr_in& clientAddr, HttpResponse& currentResponse);
 
     if (!eventLoop.add(clientFd, EPOLLIN))
     {
@@ -145,41 +145,74 @@ void HttpServer::handleNewConnection(int serverFd)
 
 void HttpServer::handleClientRead(int clientFd)
 {
+    std::cout << "Handling read on client FD: " << clientFd << std::endl;
+    
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
-    if (it == connections.end()) return;
+    if (it == connections.end()) 
+    {
+        std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
+        return;
+    }
 
     ClientConnection* conn = it->second;
     if (!conn->readData())
     {
+        std::cout << "Read failed, closing connection" << std::endl;
         closeConnection(clientFd);
         return;
     }
 
-    // if (conn->isReadyToWrite())
+    // FIXED: Check if we have a response ready to send
+    if (conn->isReadyToWrite())
     {
+        std::cout << "Response ready, switching to write mode" << std::endl;
         eventLoop.modify(clientFd, EPOLLIN | EPOLLOUT);
     }
 }
 
 void HttpServer::handleClientWrite(int clientFd)
 {
+    std::cout << "Handling write on client FD: " << clientFd << std::endl;
+    
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
-    if (it == connections.end()) return;
+    if (it == connections.end()) 
+    {
+        std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
+        return;
+    }
 
     ClientConnection* conn = it->second;
-    if (!conn->writeData())
+    
+    // FIXED: writeData() returns true when complete, false when partial
+    bool writeComplete = conn->writeData();
+    
+    if (!conn->isConnected())
     {
+        std::cout << "Connection closed during write" << std::endl;
         closeConnection(clientFd);
         return;
     }
 
-    if (!conn->isReadyToWrite())
+    if (writeComplete)
     {
-        eventLoop.modify(clientFd, EPOLLIN);
-        if (!conn->isConnected())
+        std::cout << "Write complete, response sent successfully" << std::endl;
+        // Response sent completely
+        if (!conn->isKeepAlive())
         {
+            std::cout << "Closing connection (no keep-alive)" << std::endl;
             closeConnection(clientFd);
         }
+        else
+        {
+            // Switch back to read mode for keep-alive
+            std::cout << "Keep-alive connection, switching back to read mode" << std::endl;
+            eventLoop.modify(clientFd, EPOLLIN);
+        }
+    }
+    else
+    {
+        // Partial write, keep EPOLLOUT to continue writing
+        std::cout << "Partial write, continuing..." << std::endl;
     }
 }
 
@@ -191,16 +224,18 @@ void HttpServer::handleClientError(int clientFd)
 
 void HttpServer::closeConnection(int clientFd)
 {
+    std::cout << "Closing connection on fd: " << clientFd << std::endl;
+    
     eventLoop.remove(clientFd);
-    socketManager.closeConnection(clientFd);
-
+    
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
     if (it != connections.end())
     {
-        delete it->second;
+        delete it->second;  // This calls ClientConnection destructor which closes the socket
         connections.erase(it);
     }
-    std::cout << "Closed connection on fd: " << clientFd << std::endl;
+    
+    std::cout << "Connection closed successfully" << std::endl;
 }
 
 bool HttpServer::isServerSocket(int fd) const
@@ -218,5 +253,6 @@ bool HttpServer::isServerSocket(int fd) const
 
 void HttpServer::checkTimeouts()
 {
-    // TODO: Implement timeout logic.
+    // TODO: Implement timeout logic if needed
+    // For now, this can be empty
 }
