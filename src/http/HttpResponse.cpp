@@ -71,27 +71,54 @@ void HttpResponse::clearBody()
     setHeader("Content-Length", "0");
 }
 
+// FIXED: This is the critical function - make sure it generates proper HTTP
 std::string HttpResponse::toString() const
 {
     std::ostringstream response;
     
+    // FIXED: Use HTTP/1.1 and ensure proper format
     response << "HTTP/1.1 " << statusCode << " " << statusMessage << "\r\n";
     
+    // Add Date header first
+    std::time_t now = std::time(0);
+    char timeStr[100];
+    std::strftime(timeStr, sizeof(timeStr), "%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&now));
+    response << "Date: " << timeStr << "\r\n";
+    
+    // Add all other headers
     for (std::map<std::string, std::string>::const_iterator it = headers.begin();
          it != headers.end(); ++it)
     {
         response << it->first << ": " << it->second << "\r\n";
     }
     
-    std::time_t now = std::time(0);
-    char timeStr[100];
-    std::strftime(timeStr, sizeof(timeStr), "%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&now));
-    response << "Date: " << timeStr << "\r\n";
-    
+    // CRITICAL: Empty line to separate headers from body
     response << "\r\n";
+    
+    // Add body
     response << body;
     
-    return response.str();
+    std::string result = response.str();
+    
+    // ADDED: Debug the generated response
+    std::cout << "=== GENERATED HTTP RESPONSE ===" << std::endl;
+    std::cout << "Status: " << statusCode << " " << statusMessage << std::endl;
+    std::cout << "Headers:" << std::endl;
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin();
+         it != headers.end(); ++it)
+    {
+        std::cout << "  " << it->first << ": " << it->second << std::endl;
+    }
+    std::cout << "Body Length: " << body.length() << " bytes" << std::endl;
+    if (!body.empty())
+    {
+        std::cout << "Body Preview: " << body.substr(0, 100);
+        if (body.length() > 100) std::cout << "...";
+        std::cout << std::endl;
+    }
+    std::cout << "=== FINAL RESPONSE GENERATED ===" << std::endl;
+    
+    return result;
 }
 
 const std::string& HttpResponse::getBody() const
