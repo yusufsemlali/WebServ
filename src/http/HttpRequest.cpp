@@ -77,6 +77,7 @@ void HttpRequest::reset()
 
 const std::string &HttpRequest::getMethod() const
 {
+    
     return method;
 }
 

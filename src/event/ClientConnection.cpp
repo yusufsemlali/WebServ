@@ -12,15 +12,13 @@
 #include <sstream>
 
 #include "ClientConnection.hpp"
-#include "RequestHandler.hpp"  // Make sure this is included
+#include "RequestHandler.hpp"
 #include "utiles.hpp"
 
 ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler)
     : socketFd(socketFd),
       clientAddress(parseClientAddress(clientAddr)),
       handleRequest(handler),
-      // currentResponse is now a member and will be default-constructed,
-      // so it's removed from the initializer list.
       connected(true),
       keepAlive(false),
       lastActivity(time(NULL)),
@@ -48,7 +46,6 @@ bool ClientConnection::readData()
             return true;
         }
         if (bytesReadNow < 0)
-
         {
             std::cerr << "Error reading from socket: " << strerror(errno) << std::endl;
             close();
@@ -63,6 +60,11 @@ bool ClientConnection::readData()
     readBuffer.append(buffer, static_cast<size_t>(bytesReadNow));
     bytesRead += bytesReadNow;
     updateLastActivity();
+
+    // ADDED: Print raw request data as it comes in
+    std::cout << "=== RAW REQUEST DATA RECEIVED ===" << std::endl;
+    std::cout << readBuffer << std::endl;
+    std::cout << "=== END RAW REQUEST DATA ===" << std::endl;
 
     if (processReadBuffer())
     {
@@ -80,9 +82,19 @@ bool ClientConnection::writeData()
         return false;
     }
 
+    // FIXED: Added debug info for write operations
+    std::cout << "Writing data to socket " << socketFd << std::endl;
+    std::cout << "Write buffer size: " << writeBuffer.size() << " bytes" << std::endl;
+    std::cout << "Write offset: " << writeOffset << std::endl;
+
     ssize_t bytesWrittenNow = send(socketFd, writeBuffer.data() + writeOffset, writeBuffer.size() - writeOffset, 0);
     if (bytesWrittenNow < 0)
     {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            std::cout << "Socket would block, will retry later" << std::endl;
+            return true; // Not an error, just need to try again
+        }
         std::cerr << "Error writing to socket: " << strerror(errno) << std::endl;
         close();
         return false;
@@ -90,16 +102,20 @@ bool ClientConnection::writeData()
 
     bytesWritten += bytesWrittenNow;
     writeOffset += bytesWrittenNow;
-    updateLastActivity();  // Update activity timestamp
+    updateLastActivity();
+
+    std::cout << "Wrote " << bytesWrittenNow << " bytes to socket" << std::endl;
 
     // Check if we've sent everything
     if (writeOffset >= writeBuffer.size())
     {
+        std::cout << "Complete response sent successfully" << std::endl;
         writeBuffer.clear();
         writeOffset = 0;
         return true;  // Complete response sent
     }
 
+    std::cout << "Partial write, " << (writeBuffer.size() - writeOffset) << " bytes remaining" << std::endl;
     return false;  // Partial write, need to continue later
 }
 
@@ -194,132 +210,62 @@ size_t ClientConnection::getBytesWritten() const
     return bytesWritten;
 }
 
+// FIXED: This is the critical function that was causing the empty response
 bool ClientConnection::processReadBuffer()
 {
     if (!hasCompleteRequest())
     {
+        std::cout << "Request not complete yet, waiting for more data..." << std::endl;
         return false;
     }
 
-    std::cout << "Complete request received: " << readBuffer << std::endl;
+    std::cout << "=== COMPLETE RAW REQUEST RECEIVED ===" << std::endl;
+    std::cout << readBuffer << std::endl;
+    std::cout << "=== END COMPLETE RAW REQUEST ===" << std::endl;
+
+    // Parse and handle the request
     if (currentRequest.parseRequest(readBuffer))
     {
+        std::cout << "Request parsed successfully, handling..." << std::endl;
+        
+        // Clear any previous response
+        currentResponse.reset();
+        
+        // Handle the request
         handleRequest.handleRequest(currentRequest, currentResponse);
+        
+        // CRITICAL FIX: Convert response to string and put in write buffer
+        writeBuffer = currentResponse.toString();
+        writeOffset = 0;
+        
+        std::cout << "=== RESPONSE GENERATED ===" << std::endl;
+        std::cout << "Response ready, buffer size: " << writeBuffer.size() << " bytes" << std::endl;
+        std::cout << "Response preview:" << std::endl;
+        std::cout << writeBuffer.substr(0, 200) << "..." << std::endl;
+        std::cout << "=== END RESPONSE PREVIEW ===" << std::endl;
+        
+        return true; // Request processed, response ready
     }
-
-    return true;  // Request processed, response ready
+    else
+    {
+        std::cerr << "Failed to parse request" << std::endl;
+        
+        // Generate 400 Bad Request response
+        currentResponse.reset();
+        currentResponse.setStatus(400, "Bad Request");
+        currentResponse.setBody("Invalid HTTP request format");
+        currentResponse.setHeader("Content-Type", "text/plain");
+        
+        writeBuffer = currentResponse.toString();
+        writeOffset = 0;
+        
+        return true;
+    }
 }
 
+// REMOVED: These old functions are not needed and may cause conflicts
+/*
 void ClientConnection::serveStaticFile(const std::string &requestPath)
-{
-    // Default document root (now project-local)
-    std::string documentRoot = "./root";
-
-    // Build full file path
-    std::string filePath = documentRoot + requestPath;
-
-    // If path ends with '/', serve index.html
-    if (requestPath == "/" || (!requestPath.empty() && requestPath[requestPath.length() - 1] == '/'))
-    {
-        if (!requestPath.empty() && requestPath[requestPath.length() - 1] != '/')
-            filePath += "/";
-        filePath += "index.html";
-    }
-
-    std::cout << "Attempting to serve file: " << filePath << std::endl;
-
-    // Try to read the file
-    std::ifstream file(filePath.c_str(), std::ios::binary);
-    if (file.is_open())
-    {
-        // Read file content
-        std::ostringstream oss;
-        oss << file.rdbuf();
-        std::string content = oss.str();
-        file.close();
-
-        // Determine content type
-        std::string contentType = getContentType(filePath);
-
-        // Build HTTP response
-        std::ostringstream response;
-        response << "HTTP/1.0 200 OK\r\n";
-        response << "Content-Type: " << contentType << "\r\n";
-        response << "Content-Length: " << content.length() << "\r\n";
-        response << "Server: WebServ/1.0\r\n";
-        response << "\r\n";
-        response << content;
-
-        writeBuffer = response.str();
-    }
-    else
-    {
-        // File not found - serve 404
-        serve404();
-    }
-}
-
-std::string ClientConnection::getContentType(const std::string &filePath)
-{
-    // Get file extension
-    size_t dotPos = filePath.find_last_of('.');
-    if (dotPos == std::string::npos)
-    {
-        return "text/plain";
-    }
-
-    std::string extension = filePath.substr(dotPos + 1);
-
-    // Convert to lowercase
-    for (size_t i = 0; i < extension.length(); ++i)
-    {
-        extension[i] = std::tolower(extension[i]);
-    }
-
-    // Map common extensions to MIME types
-    if (extension == "html" || extension == "htm")
-        return "text/html";
-    else if (extension == "css")
-        return "text/css";
-    else if (extension == "js")
-        return "application/javascript";
-    else if (extension == "json")
-        return "application/json";
-    else if (extension == "png")
-        return "image/png";
-    else if (extension == "jpg" || extension == "jpeg")
-        return "image/jpeg";
-    else if (extension == "gif")
-        return "image/gif";
-    else if (extension == "ico")
-        return "image/x-icon";
-    else if (extension == "txt")
-        return "text/plain";
-    else
-        return "application/octet-stream";
-}
-
 void ClientConnection::serve404()
-{
-    std::string content =
-        "<!DOCTYPE html>\n"
-        "<html>\n"
-        "<head><title>404 Not Found</title></head>\n"
-        "<body>\n"
-        "<h1>404 Not Found</h1>\n"
-        "<p>The requested file was not found on this server.</p>\n"
-        "<hr>\n"
-        "<p><em>WebServ/1.0</em></p>\n"
-        "</body>\n"
-        "</html>\n";
-
-    std::ostringstream response;
-    response << "HTTP/1.0 404 Not Found\r\n";
-    response << "Content-Type: text/html\r\n";
-    response << "Content-Length: " << content.length() << "\r\n";
-    response << "Server: WebServ/1.0\r\n";
-    response << "\r\n";
-    response << content;
-
-    writeBuffer = response.str();
-}
+std::string ClientConnection::getContentType(const std::string &filePath)
+*/
