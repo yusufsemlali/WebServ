@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <cstdio>
+#include"CgiHandler.hpp"
 
 RequestHandler::RequestHandler(const Config &config)
     : config(config)
@@ -348,15 +349,19 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
     response.setHeader("Content-Type", "text/html");
 }
 
-void RequestHandler::executeCgi(HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::executeCgi(HttpResponse &response, const Config::LocationConfig &/* location */)
 {
-    // Basic CGI implementation (simplified)
-    std::cout << "CGI execution requested for: " << location.cgiPass << std::endl;
+    // // Basic CGI implementation (simplified)
+    // std::cout << "CGI execution requested for: " << location.cgiPass << std::endl;
     
-    // For now, return a simple response
-    response.setStatus(200, "OK");
-    response.setBody("CGI execution not fully implemented yet");
-    response.setHeader("Content-Type", "text/plain");
+    // // For now, return a simple response
+    // response.setStatus(200, "OK");
+    // response.setBody("CGI execution not fully implemented yet");
+    // response.setHeader("Content-Type", "text/plain");
+    CgiHandler cgi(response);
+    // Implement CGI execution logic here
+    cgi.ExecuteCgi("test.py", "/usr/bin/python3");
+
 }
 
 void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 
