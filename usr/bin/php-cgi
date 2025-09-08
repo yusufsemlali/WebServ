@@ -1,0 +1,17 @@
+#!/bin/bash
+# Fake PHP-CGI for testing purposes
+# This script simulates php-cgi behavior
+
+echo "Content-Type: text/html"
+echo "Status: 200 OK"
+echo ""  # Empty line separates headers from body
+echo "<!DOCTYPE html>"
+echo "<html>"
+echo "<head><title>Simulated PHP CGI</title></head>"
+echo "<body>"
+echo "<h1>Hello from Simulated PHP CGI!</h1>"
+echo "<p>This simulates PHP-CGI execution.</p>"
+echo "<p>Script: $1</p>"
+echo "<p>Date: $(date)</p>"
+echo "</body>"
+echo "</html>"
