@@ -458,7 +458,7 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
 void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &response, 
                                const Config::ServerConfig &server, const Config::LocationConfig &location)
 {
-    // Advanced CGI implementation using CgiHandler
+    // Basic CGI implementation
     std::cout << "CGI: Executing script with interpreter: " << location.cgiPass << std::endl;
     
     CgiHandler cgi(response);
@@ -468,7 +468,7 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
     std::string scriptPath = resolveFilePath(uri, location, server);
     std::string interpreterPath = location.cgiPass;
     
-    // Handle interpreter path conversion
+    // Convert relative interpreter paths to absolute
     if (interpreterPath.substr(0, 2) == "./") {
         std::string relativePath = interpreterPath.substr(2);
         

@@ -11,7 +11,7 @@
 //every fd action should be executed by epoll
 //
 
-char **createCgiEnv(const std::string& scriptName, const std::string& /* pathCgi */, 
+char **createCgiEnv(const std::string& scriptName, const std::string& scriptUri, const std::string& /* pathCgi */, 
                     const std::string& requestMethod = "GET", 
                     const std::string& queryString = "",
                     const std::string& contentType = "",
@@ -29,12 +29,19 @@ char **createCgiEnv(const std::string& scriptName, const std::string& /* pathCgi
     envVars.push_back("SERVER_NAME=" + serverName);
     envVars.push_back("SERVER_PORT=" + serverPort);
     envVars.push_back("REQUEST_METHOD=" + requestMethod);
-    envVars.push_back("SCRIPT_NAME=" + scriptName);
+    envVars.push_back("SCRIPT_NAME=" + scriptUri);
+    envVars.push_back("SCRIPT_FILENAME=" + scriptName);  // Critical for PHP CGI!
     envVars.push_back("QUERY_STRING=" + queryString);
     envVars.push_back("REMOTE_ADDR=" + remoteAddr);
     envVars.push_back("REMOTE_HOST=localhost");
     envVars.push_back("PATH_INFO=");
     envVars.push_back("PATH_TRANSLATED=");
+    
+    // Additional PHP CGI specific variables
+    envVars.push_back("REQUEST_URI=" + scriptUri);
+    envVars.push_back("DOCUMENT_ROOT=/home/CtrlSyn/Desktop/WebServ/www");
+    envVars.push_back("HTTP_HOST=" + serverName + ":" + serverPort);
+    envVars.push_back("REDIRECT_STATUS=200");  // Critical for PHP CGI security
     
     // Add content type and length for POST requests
     if (!contentType.empty()) {
@@ -140,11 +147,28 @@ void CgiHandler::ExecuteCgi (const std::string& scriptName, std::string pathCgi,
             std::cout << "CGI: POST body size: " << request.getBody().length() << std::endl;
         }
         
-        char **sEnv = createCgiEnv(scriptName, pathCgi, 
+        // Convert relative script path to absolute for SCRIPT_FILENAME
+        std::string absoluteScriptName = scriptName;
+        if (scriptName.substr(0, 2) == "./") {
+            char *cwd = getcwd(NULL, 0);
+            if (cwd) {
+                absoluteScriptName = std::string(cwd) + "/" + scriptName.substr(2);
+                free(cwd);
+            }
+        }
+        
+        char **sEnv = createCgiEnv(absoluteScriptName, request.getUri(), pathCgi, 
                                    request.getMethod(), 
                                    request.getQuery(),
                                    request.getContentType(),
                                    contentLength);
+        
+        // Debug: Print environment variables being set
+        std::cout << "CGI: Environment variables being set:" << std::endl;
+        for (int i = 0; sEnv[i] != NULL; ++i) {
+            std::cout << "  " << sEnv[i] << std::endl;
+        }
+        
         char **args = new char*[3];
         args[0] = strdup(pathCgi.c_str());
         args[1] = strdup(scriptName.c_str());
