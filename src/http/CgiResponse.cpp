@@ -18,7 +18,8 @@ char **createCgiEnv(const std::string& scriptName, const std::string& scriptUri,
                     const std::string& contentLength = "",
                     const std::string& serverName = "WebServ",
                     const std::string& serverPort = "8080",
-                    const std::string& remoteAddr = "127.0.0.1")
+                    const std::string& remoteAddr = "127.0.0.1",
+                    const std::string& documentRoot = "./www")
 {
     std::vector<std::string> envVars;
     
@@ -39,7 +40,7 @@ char **createCgiEnv(const std::string& scriptName, const std::string& scriptUri,
     
     // Additional PHP CGI specific variables
     envVars.push_back("REQUEST_URI=" + scriptUri);
-    envVars.push_back("DOCUMENT_ROOT=/home/CtrlSyn/Desktop/WebServ/www");
+    envVars.push_back("DOCUMENT_ROOT=" + documentRoot);  // Now configurable
     envVars.push_back("HTTP_HOST=" + serverName + ":" + serverPort);
     envVars.push_back("REDIRECT_STATUS=200");  // Critical for PHP CGI security
     
@@ -72,14 +73,6 @@ void freeCgiEnv(char **env)
         free(env[i]);
     }
     delete[] env;
-}
-
-char **Env()
-{
-    char **env = new char*[2];
-    env[0] = strdup("MY_ENV_VAR=value");
-    env[1] = NULL;
-    return env;
 }
 
 // pathCgi = /bin/....
@@ -147,15 +140,8 @@ void CgiHandler::ExecuteCgi (const std::string& scriptName, std::string pathCgi,
             std::cout << "CGI: POST body size: " << request.getBody().length() << std::endl;
         }
         
-        // Convert relative script path to absolute for SCRIPT_FILENAME
+        // Use script path as-is for SCRIPT_FILENAME (42 compliant)
         std::string absoluteScriptName = scriptName;
-        if (scriptName.substr(0, 2) == "./") {
-            char *cwd = getcwd(NULL, 0);
-            if (cwd) {
-                absoluteScriptName = std::string(cwd) + "/" + scriptName.substr(2);
-                free(cwd);
-            }
-        }
         
         char **sEnv = createCgiEnv(absoluteScriptName, request.getUri(), pathCgi, 
                                    request.getMethod(), 
@@ -255,16 +241,17 @@ void CgiHandler::ExecuteCgi (const std::string& scriptName, std::string pathCgi,
     }
 }
 
-// Constructor and destructor implementations
+// Constructor and destructor implementations  
 CgiHandler::CgiHandler() : response(*(new HttpResponse())) 
 {
-    // Default constructor - creates a new HttpResponse
-    // Note: This creates a memory leak. Better to use the parameterized constructor.
+    // FIXME: This creates a memory leak - HttpResponse should be managed properly
+    // Better to require HttpResponse& in constructor or use smart pointers
 }
 
 CgiHandler::~CgiHandler() 
 {
-    // Destructor
+    // FIXME: Cannot safely delete response here as it might be stack-allocated
+    // This is why the parameterized constructor CgiHandler(HttpResponse &res) is preferred
 }
 
 void CgiHandler::parseCgiOutput(const std::string& output)
