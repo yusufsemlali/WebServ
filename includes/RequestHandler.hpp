@@ -33,7 +33,8 @@ private:
     void serveErrorPage(int errorCode, HttpResponse &response, const Config::ServerConfig &server);
 
     // Special handling methods
-    void executeCgi(HttpResponse &response, const Config::LocationConfig &location);
+    void executeCgi(const HttpRequest &request, HttpResponse &response, 
+                   const Config::ServerConfig &server, const Config::LocationConfig &location);
     void handleRedirect(HttpResponse &response, const Config::LocationConfig &location);
     void handleFileUpload(const HttpRequest &request, HttpResponse &response, 
                          const Config::ServerConfig &server, const Config::LocationConfig &location);

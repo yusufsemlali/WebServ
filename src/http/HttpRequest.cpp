@@ -108,7 +108,7 @@ const std::string &HttpRequest::getBody() const
 
 std::string HttpRequest::getHeader(const std::string &name) const
 {
-    std::map<std::string, std::string>::const_iterator it = headers.find(name);
+    std::map<std::string, std::string>::const_iterator it = headers.find(toLower(name));
     if (it != headers.end())
         return it->second;
     return "";

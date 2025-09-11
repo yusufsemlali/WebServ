@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <cstdio>
+#include"CgiHandler.hpp"
 
 RequestHandler::RequestHandler(const Config &config)
     : config(config)
@@ -180,6 +181,15 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
     else
     {
         std::cout << "GET: Path is file: " << filePath << std::endl;
+        
+        // Check if CGI is configured for this location first
+        if (!location.cgiPass.empty())
+        {
+            std::cout << "GET: CGI configured: " << location.cgiPass << std::endl;
+            executeCgi(request, response, server, location);
+            return;
+        }
+        
         // Serve static file
         if (hasPermission(filePath))
         {
@@ -207,7 +217,7 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
     if (!location.cgiPass.empty())
     {
         std::cout << "POST: CGI configured: " << location.cgiPass << std::endl;
-        executeCgi(response, location);
+        executeCgi(request, response, server, location);
         return;
     }
 
@@ -445,17 +455,47 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
     std::cout << "ERROR: Default error page generated (" << html.str().length() << " bytes)" << std::endl;
 }
 
-void RequestHandler::executeCgi(HttpResponse &response, const Config::LocationConfig &location)
+void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &response, 
+                               const Config::ServerConfig &server, const Config::LocationConfig &location)
 {
-    // Basic CGI implementation (simplified)
-    std::cout << "CGI: Execution requested for: " << location.cgiPass << std::endl;
+    // Basic CGI implementation
+    std::cout << "CGI: Executing script with interpreter: " << location.cgiPass << std::endl;
     
-    // For now, return a simple response
-    response.setStatus(200, "OK");
-    response.setBody("CGI execution not fully implemented yet");
-    response.setHeader("Content-Type", "text/plain");
+    CgiHandler cgi(response);
     
-    std::cout << "CGI: Returned placeholder response" << std::endl;
+    // Get the actual requested file path
+    std::string uri = request.getUri();
+    std::string scriptPath = resolveFilePath(uri, location, server);
+    std::string interpreterPath = location.cgiPass;
+    
+    // Convert relative interpreter paths to absolute
+    if (interpreterPath.substr(0, 2) == "./") {
+        std::string relativePath = interpreterPath.substr(2);
+        
+        // Check if it's a system interpreter (starts with usr/bin, bin/, etc.)
+        if (relativePath.substr(0, 7) == "usr/bin" || relativePath.substr(0, 4) == "bin/") {
+            // First try as absolute path for system interpreters
+            std::string absolutePath = "/" + relativePath;
+            if (access(absolutePath.c_str(), X_OK) == 0) {
+                interpreterPath = absolutePath;
+                std::cout << "CGI: Using system interpreter: " << interpreterPath << std::endl;
+            }
+            // If system path fails, try as relative path for local scripts
+            else if (access(relativePath.c_str(), X_OK) == 0) {
+                interpreterPath = relativePath;
+                std::cout << "CGI: Using local interpreter: " << interpreterPath << std::endl;
+            }
+            else {
+                std::cout << "CGI: Interpreter not found at system or local path: " << relativePath << std::endl;
+            }
+        }
+        else {
+            // For other paths, keep as relative
+            interpreterPath = relativePath;
+        }
+    }
+    
+    cgi.ExecuteCgi(scriptPath, interpreterPath, request);
 }
 
 void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 
@@ -778,7 +818,30 @@ const Config::LocationConfig &RequestHandler::findLocationConfig(const Config::S
         const std::string &locationPath = locations[i].path;
         std::cout << "LOCATION_FIND: Checking location[" << i << "]: " << locationPath << std::endl;
         
-        if (uri.find(locationPath) == 0 && locationPath.length() > bestMatchLength)
+        bool matches = false;
+        
+        // Check for wildcard patterns (e.g., *.py, *.php)
+        if (locationPath.length() > 0 && locationPath[0] == '*')
+        {
+            // Extract the extension from the pattern (e.g., ".py" from "*.py")
+            std::string extension = locationPath.substr(1);
+            
+            // Check if URI ends with this extension
+            if (uri.length() >= extension.length() && 
+                uri.substr(uri.length() - extension.length()) == extension)
+            {
+                matches = true;
+                std::cout << "LOCATION_FIND: Wildcard match found for extension: " << extension << std::endl;
+            }
+        }
+        // Check for exact prefix match (e.g., "/download", "/bin")
+        else if (uri.find(locationPath) == 0)
+        {
+            matches = true;
+            std::cout << "LOCATION_FIND: Prefix match found" << std::endl;
+        }
+        
+        if (matches && locationPath.length() > bestMatchLength)
         {
             bestMatch = &locations[i];
             bestMatchLength = locationPath.length();
