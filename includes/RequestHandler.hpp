@@ -8,16 +8,36 @@
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
 
+// TEMPORARY: Forward declaration for non-blocking CGI testing
+class HttpServer;
+class SocketManager;
+
 class RequestHandler
 {
 public:
     RequestHandler(const Config &config);
+    
+    // TEMPORARY: Constructor with HttpServer reference for non-blocking CGI testing
+    RequestHandler(const Config &config, HttpServer* server);
+    
     ~RequestHandler();
 
     void handleRequest(const HttpRequest &request, HttpResponse &response);
+    
+    // TEMPORARY: Non-blocking CGI version that needs client_fd
+    void handleRequest(const HttpRequest &request, HttpResponse &response, int client_fd);
+    
+    // Socket-based version that uses server config from accepting socket (source of truth)
+    void handleRequest(const HttpRequest &request, HttpResponse &response, int client_fd, const Config::ServerConfig* serverConfig);
+    
+    // Nginx-style version that handles multiple servers per socket with server_name matching
+    void handleRequestNginxStyle(const HttpRequest &request, HttpResponse &response, int client_fd, int serverFd);
 
 private:
     const Config &config;
+    
+    // TEMPORARY: HttpServer reference for non-blocking CGI testing
+    HttpServer* httpServer;
 
     // Main request processing methods
     void processGetRequest(const HttpRequest &request, HttpResponse &response, 
@@ -27,6 +47,12 @@ private:
     void processDeleteRequest(const HttpRequest &request, HttpResponse &response, 
                              const Config::ServerConfig &server, const Config::LocationConfig &location);
 
+    // TEMPORARY: Non-blocking versions for CGI testing
+    void processGetRequestNonBlocking(const HttpRequest &request, HttpResponse &response, 
+                                     const Config::ServerConfig &server, const Config::LocationConfig &location, int client_fd);
+    void processPostRequestNonBlocking(const HttpRequest &request, HttpResponse &response, 
+                                      const Config::ServerConfig &server, const Config::LocationConfig &location, int client_fd);
+
     // Content serving methods
     void serveStaticFile(const std::string &filePath, HttpResponse &response);
     void serveDirectoryListing(const std::string &dirPath, HttpResponse &response);
@@ -35,6 +61,11 @@ private:
     // Special handling methods
     void executeCgi(const HttpRequest &request, HttpResponse &response, 
                    const Config::ServerConfig &server, const Config::LocationConfig &location);
+                   
+    // TEMPORARY: Non-blocking CGI version for testing
+    void executeCgiNonBlocking(const HttpRequest &request, HttpResponse &response, 
+                              const Config::ServerConfig &server, const Config::LocationConfig &location,
+                              int client_fd);
     void handleRedirect(HttpResponse &response, const Config::LocationConfig &location);
     void handleFileUpload(const HttpRequest &request, HttpResponse &response, 
                          const Config::ServerConfig &server, const Config::LocationConfig &location);

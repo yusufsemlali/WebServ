@@ -8,8 +8,17 @@
 #include <cstdio>
 #include"CgiHandler.hpp"
 
+// TEMPORARY: Include for non-blocking CGI testing
+#include "HttpServer.hpp"
+
 RequestHandler::RequestHandler(const Config &config)
-    : config(config)
+    : config(config), httpServer(NULL)
+{
+}
+
+// TEMPORARY: Constructor with HttpServer reference for non-blocking CGI testing
+RequestHandler::RequestHandler(const Config &config, HttpServer* server)
+    : config(config), httpServer(server)
 {
 }
 
@@ -130,6 +139,69 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
         return;
     }
 }
+
+// =========== TEMPORARY: OVERLOADED METHOD FOR NON-BLOCKING CGI ===========
+// This is a temporary overloaded version that accepts client_fd for non-blocking CGI
+// Once tested, this should replace the original handleRequest method above
+void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &response, int client_fd)
+{
+    std::cout << "=== USING NON-BLOCKING REQUEST HANDLER (client_fd: " << client_fd << ") ===" << std::endl;
+    
+    std::string method = request.getMethod();
+    std::string uri = request.getUri();
+
+    std::cout << "\n======================================" << std::endl;
+    std::cout << "Processing " << method << " request for " << uri << " (NON-BLOCKING)" << std::endl;
+    std::cout << "======================================" << std::endl;
+
+    // 1. Validate request
+    if (!isValidRequest(request))
+    {
+        setErrorResponse(400, response, "Bad Request");
+        std::cout << "\n--- VALIDATION ERROR RESPONSE ---" << std::endl;
+        return;
+    }
+
+    const Config::ServerConfig &serverConfig = findServerConfig(request);
+    
+    try 
+    {
+        const Config::LocationConfig &locationConfig = findLocationConfig(serverConfig, uri);
+        std::cout << "Location found: " << locationConfig.path << std::endl;
+        
+        // 2. Check if method is allowed
+        if (!isMethodAllowed(method, locationConfig))
+        {
+            serveErrorPage(405, response, serverConfig);
+            return;
+        }
+
+        // 3. Route to appropriate method handler
+        if (method == "GET")
+        {
+            processGetRequestNonBlocking(request, response, serverConfig, locationConfig, client_fd);
+        }
+        else if (method == "POST")
+        {
+            processPostRequestNonBlocking(request, response, serverConfig, locationConfig, client_fd);
+        }
+        else if (method == "DELETE")
+        {
+            processDeleteRequest(request, response, serverConfig, locationConfig);
+        }
+        else
+        {
+            setErrorResponse(405, response, "Method Not Allowed");
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error processing request: " << e.what() << std::endl;
+        setErrorResponse(500, response, "Internal Server Error");
+        return;
+    }
+}
+// =========== END TEMPORARY NON-BLOCKING REQUEST HANDLER ===========
 
 void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse &response, 
                                      const Config::ServerConfig &server, const Config::LocationConfig &location)
@@ -255,6 +327,133 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
         }
     }
 }
+
+// =========== TEMPORARY: NON-BLOCKING GET REQUEST HANDLER ===========
+void RequestHandler::processGetRequestNonBlocking(const HttpRequest &request, HttpResponse &response, 
+                                                  const Config::ServerConfig &server, const Config::LocationConfig &location, int)
+{
+    std::string uri = request.getUri();
+    std::string filePath = resolveFilePath(uri, location, server);
+    
+    std::cout << "GET (NON-BLOCKING): Resolved file path: " << filePath << std::endl;
+
+    // Check if file/directory exists
+    if (!fileExists(filePath))
+    {
+        std::cout << "GET: File not found: " << filePath << std::endl;
+        serveErrorPage(404, response, server);
+        return;
+    }
+
+    // Check if it's a directory
+    if (isDirectory(filePath))
+    {
+        std::cout << "GET: Path is directory: " << filePath << std::endl;
+        // Same directory handling as original - no CGI for directories
+        std::string indexFile = location.index.empty() ? server.index : location.index;
+        if (indexFile.empty())
+            indexFile = "index.html";
+        
+        std::string indexPath = filePath;
+        if (indexPath[indexPath.length() - 1] != '/')
+            indexPath += "/";
+        indexPath += indexFile;
+
+        std::cout << "GET: Looking for index file: " << indexPath << std::endl;
+        if (fileExists(indexPath) && !isDirectory(indexPath))
+        {
+            std::cout << "GET: Serving index file: " << indexPath << std::endl;
+            serveStaticFile(indexPath, response);
+        }
+        else if (location.autoindex || server.autoindex)
+        {
+            std::cout << "GET: Generating directory listing for: " << filePath << std::endl;
+            serveDirectoryListing(filePath, response);
+        }
+        else
+        {
+            std::cout << "GET: Directory access forbidden (no index, no autoindex)" << std::endl;
+            serveErrorPage(403, response, server);
+        }
+    }
+    else
+    {
+        std::cout << "GET (NON-BLOCKING): Path is file: " << filePath << std::endl;
+        
+        // *** THIS IS THE KEY CHANGE: Use non-blocking CGI ***
+        if (!location.cgiPass.empty())
+        {
+            std::cout << "GET: CGI configured: " << location.cgiPass << std::endl;
+            executeCgi(request, response, server, location);
+            return;
+        }
+        
+        // Serve static file (same as original)
+        if (hasPermission(filePath))
+        {
+            std::cout << "GET: File has read permission" << std::endl;
+            serveStaticFile(filePath, response);
+        }
+        else
+        {
+            std::cout << "GET: File access forbidden (no read permission)" << std::endl;
+            serveErrorPage(403, response, server);
+        }
+    }
+}
+
+// =========== TEMPORARY: NON-BLOCKING POST REQUEST HANDLER ===========
+void RequestHandler::processPostRequestNonBlocking(const HttpRequest &request, HttpResponse &response, 
+                                                   const Config::ServerConfig &server, const Config::LocationConfig &location, int)
+{
+    std::string uri = request.getUri();
+    
+    std::cout << "POST (NON-BLOCKING): Processing URI: " << uri << std::endl;
+    std::cout << "POST: Content-Type: " << request.getContentType() << std::endl;
+    std::cout << "POST: Content-Length: " << request.getContentLength() << std::endl;
+    
+    // *** THIS IS THE KEY CHANGE: Use non-blocking CGI ***
+    if (!location.cgiPass.empty())
+    {
+        std::cout << "POST: CGI configured: " << location.cgiPass << std::endl;
+        executeCgi(request, response, server, location);
+        return;
+    }
+
+    // Handle file uploads or form data (same as original)
+    std::string contentType = request.getContentType();
+    
+    if (contentType.find("multipart/form-data") != std::string::npos)
+    {
+        std::cout << "POST: Handling file upload" << std::endl;
+        handleFileUpload(request, response, server, location);
+    }
+    else if (contentType == "application/x-www-form-urlencoded")
+    {
+        std::cout << "POST: Handling form data" << std::endl;
+        handleFormData(request, response);
+    }
+    else
+    {
+        std::cout << "POST: Creating/updating resource" << std::endl;
+        std::string filePath = resolveFilePath(uri, location, server);
+        
+        std::cout << "POST: Target file path: " << filePath << std::endl;
+        if (createFile(filePath, request.getBody()))
+        {
+            std::cout << "POST: File created successfully" << std::endl;
+            response.setStatus(201, "Created");
+            response.setBody("Resource created successfully");
+            response.setHeader("Content-Type", "text/plain");
+        }
+        else
+        {
+            std::cout << "POST: Failed to create file" << std::endl;
+            serveErrorPage(500, response, server);
+        }
+    }
+}
+// =========== END TEMPORARY NON-BLOCKING METHODS ===========
 
 void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpResponse &response, 
                                         const Config::ServerConfig &server, const Config::LocationConfig &location)
@@ -498,206 +697,6 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
     cgi.ExecuteCgi(scriptPath, interpreterPath, request);
 }
 
-void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 
-                                    const Config::ServerConfig &server, const Config::LocationConfig &location)
-{
-    // Simplified file upload handling
-    std::cout << "UPLOAD: File upload requested" << std::endl;
-    std::cout << "UPLOAD: Body size: " << request.getBody().length() << " bytes" << std::endl;
-    
-    // For now, just save the body to a file
-    std::string uploadDir = location.root.empty() ? server.root : location.root;
-    uploadDir += "/uploads";
-    
-    std::cout << "UPLOAD: Upload directory: " << uploadDir << std::endl;
-    
-    // Create uploads directory if it doesn't exist
-    mkdir(uploadDir.c_str(), 0755);
-    
-    std::string filename = uploadDir + "/upload_" + getCurrentTimestamp();
-    std::cout << "UPLOAD: Target filename: " << filename << std::endl;
-    
-    if (createFile(filename, request.getBody()))
-    {
-        std::cout << "UPLOAD: File uploaded successfully: " << filename << std::endl;
-        response.setStatus(201, "Created");
-        response.setBody("File uploaded successfully to " + filename);
-        response.setHeader("Content-Type", "text/plain");
-    }
-    else
-    {
-        std::cout << "UPLOAD: Failed to save uploaded file" << std::endl;
-        serveErrorPage(500, response, server);
-    }
-}
-
-void RequestHandler::handleFormData(const HttpRequest &request, HttpResponse &response)
-{
-    std::cout << "FORM: Form data received" << std::endl;
-    std::cout << "FORM: Data length: " << request.getBody().length() << " bytes" << std::endl;
-    std::cout << "FORM: Data content: " << request.getBody() << std::endl;
-    
-    response.setStatus(200, "OK");
-    response.setBody("Form data processed successfully\nReceived: " + request.getBody());
-    response.setHeader("Content-Type", "text/plain");
-    
-    std::cout << "FORM: Response generated" << std::endl;
-}
-
-std::string RequestHandler::resolveFilePath(const std::string &uri, const Config::LocationConfig &location, 
-                                          const Config::ServerConfig &server) const
-{
-    std::string root = location.root.empty() ? server.root : location.root;
-    if (root.empty())
-        root = "./www"; // Default document root
-
-    std::string path = root + uri;
-    
-    std::cout << "RESOLVE: URI: " << uri << std::endl;
-    std::cout << "RESOLVE: Root: " << root << std::endl;
-    std::cout << "RESOLVE: Initial path: " << path << std::endl;
-    
-    // Remove any double slashes
-    size_t pos = 0;
-    while ((pos = path.find("//", pos)) != std::string::npos)
-    {
-        path.replace(pos, 2, "/");
-    }
-    
-    std::cout << "RESOLVE: Final path: " << path << std::endl;
-    return path;
-}
-
-void RequestHandler::handleRedirect(HttpResponse &response, const Config::LocationConfig &location)
-{
-    std::cout << "REDIRECT: Redirecting to: " << location.returnUrl << std::endl;
-    response.setStatus(302, "Found");
-    response.setHeader("Location", location.returnUrl);
-    response.setBody("");
-}
-
-bool RequestHandler::fileExists(const std::string &path) const
-{
-    struct stat buffer;
-    bool exists = (stat(path.c_str(), &buffer) == 0);
-    std::cout << "FILE_CHECK: " << path << " exists: " << (exists ? "YES" : "NO") << std::endl;
-    return exists;
-}
-
-bool RequestHandler::isDirectory(const std::string &path) const
-{
-    struct stat buffer;
-    if (stat(path.c_str(), &buffer) != 0)
-        return false;
-    bool isDir = S_ISDIR(buffer.st_mode);
-    std::cout << "DIR_CHECK: " << path << " is directory: " << (isDir ? "YES" : "NO") << std::endl;
-    return isDir;
-}
-
-bool RequestHandler::hasPermission(const std::string &path) const
-{
-    bool hasRead = access(path.c_str(), R_OK) == 0;
-    std::cout << "PERM_CHECK: " << path << " readable: " << (hasRead ? "YES" : "NO") << std::endl;
-    return hasRead;
-}
-
-bool RequestHandler::createFile(const std::string &path, const std::string &content) const
-{
-    std::cout << "CREATE_FILE: Creating file: " << path << std::endl;
-    std::cout << "CREATE_FILE: Content size: " << content.length() << " bytes" << std::endl;
-    
-    std::ofstream file(path.c_str());
-    if (!file.is_open())
-    {
-        std::cout << "CREATE_FILE: Failed to open file for writing" << std::endl;
-        return false;
-    }
-    
-    file << content;
-    file.close();
-    
-    std::cout << "CREATE_FILE: File created successfully" << std::endl;
-    return true;
-}
-
-std::string RequestHandler::getCurrentTimestamp() const
-{
-    std::time_t now = std::time(0);
-    std::ostringstream oss;
-    oss << now;
-    return oss.str();
-}
-
-std::string RequestHandler::getMimeType(const std::string &filePath) const
-{
-    size_t dotPos = filePath.find_last_of('.');
-    if (dotPos == std::string::npos)
-    {
-        return "application/octet-stream";
-    }
-    
-    std::string extension = filePath.substr(dotPos + 1);
-    
-    // Convert to lowercase
-    for (size_t i = 0; i < extension.length(); ++i)
-    {
-        if (extension[i] >= 'A' && extension[i] <= 'Z')
-        {
-            extension[i] = extension[i] + ('a' - 'A');
-        }
-    }
-    
-    std::string mimeType;
-    if (extension == "html" || extension == "htm")
-        mimeType = "text/html";
-    else if (extension == "css")
-        mimeType = "text/css";
-    else if (extension == "js")
-        mimeType = "application/javascript";
-    else if (extension == "json")
-        mimeType = "application/json";
-    else if (extension == "png")
-        mimeType = "image/png";
-    else if (extension == "jpg" || extension == "jpeg")
-        mimeType = "image/jpeg";
-    else if (extension == "gif")
-        mimeType = "image/gif";
-    else if (extension == "txt")
-        mimeType = "text/plain";
-    else
-        mimeType = "application/octet-stream";
-    
-    std::cout << "MIME: " << filePath << " -> " << mimeType << std::endl;
-    return mimeType;
-}
-
-// FIXED: Helper methods for validation and configuration
-bool RequestHandler::isMethodAllowed(const std::string &method, const Config::LocationConfig &location) const
-{
-    // Add debug print to trace execution
-    std::cout << "METHOD_CHECK: Checking method: '" << method << "' for location: '" << location.path << "'" << std::endl;
-    std::cout << "METHOD_CHECK: Location has " << location.allowedMethods.size() << " configured methods" << std::endl;
-    
-    if (location.allowedMethods.empty())
-    {
-        std::cout << "METHOD_CHECK: No specific methods configured, using defaults" << std::endl;
-        bool allowed = (method == "GET" || method == "POST" || method == "DELETE" || method == "HEAD");
-        std::cout << "METHOD_CHECK: Default check result: " << (allowed ? "ALLOWED" : "NOT ALLOWED") << std::endl;
-        return allowed;
-    }
-    
-    std::cout << "METHOD_CHECK: Checking against configured methods:" << std::endl;
-    for (std::set<std::string>::const_iterator it = location.allowedMethods.begin();
-         it != location.allowedMethods.end(); ++it)
-    {
-        std::cout << "  - " << *it << std::endl;
-    }
-    
-    bool allowed = location.allowedMethods.find(method) != location.allowedMethods.end();
-    std::cout << "METHOD_CHECK: Method " << method << " is " << (allowed ? "ALLOWED" : "NOT ALLOWED") << std::endl;
-    return allowed;
-}
-
 bool RequestHandler::isValidRequest(const HttpRequest &request) const
 {
     std::cout << "VALIDATION: Checking request validity..." << std::endl;
@@ -740,8 +739,183 @@ bool RequestHandler::isValidRequest(const HttpRequest &request) const
     return true;
 }
 
+// Utility methods
+bool RequestHandler::fileExists(const std::string &path) const
+{
+    struct stat buffer;
+    bool exists = (stat(path.c_str(), &buffer) == 0);
+    return exists;
+}
+
+bool RequestHandler::isDirectory(const std::string &path) const
+{
+    struct stat buffer;
+    if (stat(path.c_str(), &buffer) != 0)
+        return false;
+    return S_ISDIR(buffer.st_mode);
+}
+
+bool RequestHandler::hasPermission(const std::string &path) const
+{
+    return access(path.c_str(), R_OK) == 0;
+}
+
+bool RequestHandler::createFile(const std::string &path, const std::string &content) const
+{
+    std::ofstream file(path.c_str());
+    if (!file.is_open())
+        return false;
+    
+    file << content;
+    file.close();
+    return true;
+}
+
+std::string RequestHandler::getCurrentTimestamp() const
+{
+    std::time_t now = std::time(0);
+    std::ostringstream oss;
+    oss << now;
+    return oss.str();
+}
+
+std::string RequestHandler::getMimeType(const std::string &filePath) const
+{
+    size_t dotPos = filePath.find_last_of('.');
+    if (dotPos == std::string::npos)
+        return "application/octet-stream";
+    
+    std::string extension = filePath.substr(dotPos + 1);
+    
+    // Convert to lowercase
+    for (size_t i = 0; i < extension.length(); ++i)
+    {
+        if (extension[i] >= 'A' && extension[i] <= 'Z')
+            extension[i] = extension[i] + ('a' - 'A');
+    }
+    
+    if (extension == "html" || extension == "htm")
+        return "text/html";
+    else if (extension == "css")
+        return "text/css";
+    else if (extension == "js")
+        return "application/javascript";
+    else if (extension == "json")
+        return "application/json";
+    else if (extension == "png")
+        return "image/png";
+    else if (extension == "jpg" || extension == "jpeg")
+        return "image/jpeg";
+    else if (extension == "gif")
+        return "image/gif";
+    else if (extension == "txt")
+        return "text/plain";
+    else
+        return "application/octet-stream";
+}
+
+bool RequestHandler::isMethodAllowed(const std::string &method, const Config::LocationConfig &location) const
+{
+    return location.allowedMethods.find(method) != location.allowedMethods.end();
+}
+
+std::string RequestHandler::resolveFilePath(const std::string &uri, const Config::LocationConfig &location, 
+                           const Config::ServerConfig &server) const
+{
+    std::string root = location.root.empty() ? server.root : location.root;
+    std::string path = root + uri;
+    return path;
+}
+
+void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 
+                                    const Config::ServerConfig &server, const Config::LocationConfig &location)
+{
+    // Simple file upload implementation
+    std::string uploadPath = resolveFilePath("/upload.txt", location, server);
+    if (createFile(uploadPath, request.getBody()))
+    {
+        response.setStatus(201, "Created");
+        response.setBody("File uploaded successfully");
+    }
+    else
+    {
+        setErrorResponse(500, response, "Upload failed");
+    }
+}
+
+void RequestHandler::handleFormData(const HttpRequest &request, HttpResponse &response)
+{
+    // Simple form data handling
+    response.setStatus(200, "OK");
+    response.setBody("Form data received: " + request.getBody());
+}
+
+void RequestHandler::handleRedirect(HttpResponse &response, const Config::LocationConfig &location)
+{
+    response.setStatus(301, "Moved Permanently");
+    response.setHeader("Location", location.returnUrl);
+    response.setBody("");
+}
+
+// Socket-based request handling - uses server config from accepting socket (source of truth)
+void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &response, int, const Config::ServerConfig* serverConfig)
+{
+    std::string method = request.getMethod();
+    std::string uri = request.getUri();
+
+    std::cout << "Processing " << method << " " << uri << std::endl;
+
+    // 1. Validate request
+    if (!isValidRequest(request))
+    {
+        setErrorResponse(400, response, "Bad Request");
+        return;
+    }
+
+    if (!serverConfig) {
+        std::cerr << "Error: No server config provided" << std::endl;
+        setErrorResponse(500, response, "Internal Server Error");
+        return;
+    }
+    
+    try 
+    {
+        const Config::LocationConfig &locationConfig = findLocationConfig(*serverConfig, uri);
+        
+        if (!isMethodAllowed(method, locationConfig))
+        {
+            setErrorResponse(405, response, "Method Not Allowed");
+            return;
+        }
+
+        // Process request based on method
+        if (method == "GET")
+        {
+            processGetRequest(request, response, *serverConfig, locationConfig);
+        }
+        else if (method == "POST")
+        {
+            processPostRequest(request, response, *serverConfig, locationConfig);
+        }
+        else if (method == "DELETE")
+        {
+            processDeleteRequest(request, response, *serverConfig, locationConfig);
+        }
+        else
+        {
+            setErrorResponse(405, response, "Method Not Allowed");
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error processing request: " << e.what() << std::endl;
+        setErrorResponse(500, response, "Internal Server Error");
+    }
+}
+
 const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &request) const
 {
+
     std::string hostHeader = request.getHeader("host");
     std::string hostname = hostHeader;
 

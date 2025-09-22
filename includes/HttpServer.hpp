@@ -2,6 +2,8 @@
 
 #include <map>
 #include <string>
+#include <memory>
+#include <set>
 
 #include "ClientConnection.hpp"
 #include "Config.hpp"
@@ -37,6 +39,5 @@ class HttpServer
 
     void closeConnection(int clientFd);
     bool isServerSocket(int fd) const;
-
     void checkTimeouts();
 };

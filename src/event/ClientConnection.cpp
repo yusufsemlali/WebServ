@@ -15,9 +15,10 @@
 #include "RequestHandler.hpp"
 #include "utiles.hpp"
 
-ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler)
+ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler, const Config::ServerConfig* serverConfig)
     : socketFd(socketFd),
       clientAddress(parseClientAddress(clientAddr)),
+      serverConfig(serverConfig),
       handleRequest(handler),
       connected(true),
       keepAlive(false),
@@ -61,11 +62,6 @@ bool ClientConnection::readData()
     bytesRead += bytesReadNow;
     updateLastActivity();
 
-    // ADDED: Print raw request data as it comes in
-    std::cout << "=== RAW REQUEST DATA RECEIVED ===" << std::endl;
-    std::cout << readBuffer << std::endl;
-    std::cout << "=== END RAW REQUEST DATA ===" << std::endl;
-
     if (processReadBuffer())
     {
         readBuffer.clear();
@@ -104,12 +100,12 @@ bool ClientConnection::writeData()
     writeOffset += bytesWrittenNow;
     updateLastActivity();
 
-    std::cout << "Wrote " << bytesWrittenNow << " bytes to socket" << std::endl;
+    // std::cout << "Wrote " << bytesWrittenNow << " bytes to socket" << std::endl;
 
     // Check if we've sent everything
     if (writeOffset >= writeBuffer.size())
     {
-        std::cout << "Complete response sent successfully" << std::endl;
+        // std::cout << "Complete response sent successfully" << std::endl;
         writeBuffer.clear();
         writeOffset = 0;
         return true;  // Complete response sent
@@ -139,7 +135,6 @@ bool ClientConnection::isConnected() const
 
 bool ClientConnection::hasCompleteRequest() const
 {
-    // Check for complete HTTP request (ends with \r\n\r\n)
     return readBuffer.find("\r\n\r\n") != std::string::npos;
 }
 
@@ -219,20 +214,19 @@ bool ClientConnection::processReadBuffer()
         return false;
     }
 
-    std::cout << "=== COMPLETE RAW REQUEST RECEIVED ===" << std::endl;
-    std::cout << readBuffer << std::endl;
-    std::cout << "=== END COMPLETE RAW REQUEST ===" << std::endl;
-
-    // Parse and handle the request
     if (currentRequest.parseRequest(readBuffer))
     {
-        std::cout << "Request parsed successfully, handling..." << std::endl;
-        
-        // Clear any previous response
         currentResponse.reset();
         
-        // Handle the request
-        handleRequest.handleRequest(currentRequest, currentResponse);
+        // Handle the request using socket-based server config (source of truth)
+        handleRequest.handleRequest(currentRequest, currentResponse, socketFd, serverConfig);
+        
+        // TEMPORARY: Check if CGI is pending (don't send response immediately)
+        if (currentResponse.getStatusCode() == 0) {  // CGI_PENDING marker
+            std::cout << "=== CGI PENDING - NOT SENDING RESPONSE YET ===" << std::endl;
+            std::cout << "CGI is running asynchronously, response will be sent when ready" << std::endl;
+            return true; // Keep connection alive, don't send response yet
+        }
         
         // CRITICAL FIX: Convert response to string and put in write buffer
         writeBuffer = currentResponse.toString();

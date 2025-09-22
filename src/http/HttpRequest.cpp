@@ -15,7 +15,6 @@ HttpRequest::~HttpRequest()
 
 bool HttpRequest::parseRequest(const std::string &rawRequest)
 {
-    // Only parse the request - don't validate
     if (!parseRequestLine(rawRequest))
     {
         requestComplete = false;

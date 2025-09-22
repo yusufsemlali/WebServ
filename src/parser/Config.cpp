@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cctype>
 #include <stdexcept>
+#include <unistd.h>
 
 Config::Config() {}
 
@@ -470,9 +471,9 @@ void Config::validateCgiPath(const std::string &path)
         {
                 throwValidationError("cgi_pass", path, "CGI path cannot be empty");
         }
-        if (path[0] != '.' &&  path[1] != '/')
+        if (path[0] != '/')
         {
-                throwValidationError("cgi_pass", path, "CGI path must be a relative path starting with './'");
+                throwValidationError("cgi_pass", path, "CGI path must be an absolute path starting with '/'");
         }
 }
 

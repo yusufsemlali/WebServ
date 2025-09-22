@@ -24,18 +24,42 @@ SocketManager::~SocketManager()
 
 bool SocketManager::createServerSocket(const Config::ListenConfig &listenConfig, const Config::ServerConfig *serverConfig)
 {
+    // Create address string for this listen directive
+    std::string address = listenConfig.host + ":" + listenConfig.port;
+    
+    std::cout << "NGINX_SOCKET: Processing listen directive: " << address << std::endl;
+    
+    // Check if we already have a socket for this address (nginx-style socket sharing)
+    std::map<std::string, int>::iterator it = addressToSocket.find(address);
+    if (it != addressToSocket.end())
+    {
+        // Reuse existing socket - add this server to the list
+        int existingSocket = it->second;
+        std::cout << "NGINX_SOCKET: Reusing existing socket " << existingSocket << " for " << address << std::endl;
+        serverConfigs[existingSocket].push_back(serverConfig);
+        return true;
+    }
+    
+    // Create new socket for this address
+    std::cout << "NGINX_SOCKET: Creating new socket for " << address << std::endl;
     int serverFd = createSocket();
     if (serverFd < 0)
     {
         return false;
     }
+    
     if (!bindAndListen(serverFd, listenConfig.host, listenConfig.port))
     {
         close(serverFd);
         return false;
     }
+    
+    // Store the new socket
     serverSockets.push_back(serverFd);
-    serverConfigs[serverFd] = serverConfig;
+    addressToSocket[address] = serverFd;
+    serverConfigs[serverFd].push_back(serverConfig);  // Initialize with first server
+    
+    std::cout << "NGINX_SOCKET: Successfully created socket " << serverFd << " for " << address << std::endl;
     return true;
 }
 
@@ -144,12 +168,26 @@ const std::map<int, ClientConnection *> &SocketManager::getClientConnections() c
 
 const Config::ServerConfig *SocketManager::getServerConfig(int serverFd) const
 {
-    std::map<int, const Config::ServerConfig *>::const_iterator it = serverConfigs.find(serverFd);
+    std::map<int, std::vector<const Config::ServerConfig *> >::const_iterator it = serverConfigs.find(serverFd);
+    if (it != serverConfigs.end() && !it->second.empty())
+    {
+        // Return the first server config (for backward compatibility)
+        return it->second[0];
+    }
+    return NULL;  // Server FD not found
+}
+
+const std::vector<const Config::ServerConfig *> &SocketManager::getServerConfigs(int serverFd) const
+{
+    std::map<int, std::vector<const Config::ServerConfig *> >::const_iterator it = serverConfigs.find(serverFd);
     if (it != serverConfigs.end())
     {
         return it->second;
     }
-    return NULL;  // Server FD not found
+    
+    // Return empty vector if not found
+    static std::vector<const Config::ServerConfig *> empty;
+    return empty;
 }
 
 int SocketManager::createSocket()

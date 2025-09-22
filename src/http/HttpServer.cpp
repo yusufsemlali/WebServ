@@ -1,10 +1,19 @@
 #include "HttpServer.hpp"
 
 #include <netinet/in.h>
+#include <sys/wait.h>
+#include <sys/socket.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <signal.h>
 
 #include <cerrno>
 #include <cstring>
 #include <iostream>
+#include <cstdlib>
+#include <memory>
+#include <sstream>
+
 
 HttpServer::HttpServer(Config& config)
     : config(config),
@@ -24,6 +33,7 @@ HttpServer::~HttpServer()
         delete it->second;
     }
     connections.clear();
+    
     socketManager.closeAllSockets();
 }
 
@@ -55,7 +65,6 @@ void HttpServer::run()
         for (int i = 0; i < eventCount; ++i)
         {
             int fd = events[i].data.fd;
-            std::cout << "Event on FD " << fd << " with events: " << events[i].events << std::endl;
             
             if (isServerSocket(fd))
             {
@@ -133,9 +142,23 @@ void HttpServer::handleNewConnection(int serverFd)
         return;
     }
 
-    std::cout << "New connection accepted on fd: " << clientFd << std::endl;
+    std::cout << "New connection accepted on fd: " << clientFd << " from server socket: " << serverFd << std::endl;
 
-    connections[clientFd] = new ClientConnection(clientFd, clientAddr, requestHandler);
+    // Get all server configs for this server socket (nginx-style: multiple servers per socket)
+    const std::vector<const Config::ServerConfig *> &serverConfigs = socketManager.getServerConfigs(serverFd);
+    if (serverConfigs.empty()) {
+        std::cerr << "Error: No server configs found for server socket " << serverFd << std::endl;
+        close(clientFd);
+        return;
+    }
+
+    // For now, use the first server config (will be enhanced with server_name matching later)
+    const Config::ServerConfig* selectedServerConfig = serverConfigs[0];
+    
+    std::cout << "NGINX_STYLE: Socket " << serverFd << " has " << serverConfigs.size() << " server(s)" << std::endl;
+    std::cout << "NGINX_STYLE: Using first server config for now (server_name matching to be added)" << std::endl;
+
+    connections[clientFd] = new ClientConnection(clientFd, clientAddr, requestHandler, selectedServerConfig);
 
     if (!eventLoop.add(clientFd, EPOLLIN))
     {
@@ -253,6 +276,7 @@ bool HttpServer::isServerSocket(int fd) const
 
 void HttpServer::checkTimeouts()
 {
-    // TODO: Implement timeout logic if needed
+    // TODO: Implement timeout logic
     // For now, this can be empty
+    // Check for connection timeouts
 }

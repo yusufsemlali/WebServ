@@ -6,11 +6,12 @@
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
 #include "RequestHandler.hpp"
+#include "Config.hpp"
 
 class ClientConnection
 {
    public:
-    ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler);
+    ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler, const Config::ServerConfig* serverConfig);
     ~ClientConnection();
 
     // Connection management
@@ -46,6 +47,7 @@ class ClientConnection
    private:
     int socketFd;
     std::string clientAddress;
+    const Config::ServerConfig* serverConfig;  // Server config from accepting socket
 
     std::string readBuffer;
     std::string writeBuffer;
