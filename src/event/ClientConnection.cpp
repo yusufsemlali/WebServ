@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 #include <cctype>
+#include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -26,10 +27,17 @@ ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clien
       bytesWritten(0),
       writeOffset(0)
 {
+    context.state = READING_REQUEST;
 }
 
 ClientConnection::~ClientConnection()
 {
+    // Clean up any pending async operation
+    if (context.pendingOperation) {
+        context.pendingOperation->cleanup();
+        delete context.pendingOperation;
+        context.pendingOperation = NULL;
+    }
     close();
 }
 
@@ -145,12 +153,12 @@ bool ClientConnection::hasCompleteRequest() const
 
 HttpRequest &ClientConnection::getCurrentRequest()
 {
-    return currentRequest;
+    return context.request;
 }
 
 HttpResponse &ClientConnection::getCurrentResponse()
 {
-    return currentResponse;
+    return context.response;
 }
 
 bool ClientConnection::isKeepAlive() const
@@ -224,19 +232,27 @@ bool ClientConnection::processReadBuffer()
     std::cout << "=== END COMPLETE RAW REQUEST ===" << std::endl;
 
     // Parse and handle the request
-    if (currentRequest.parseRequest(readBuffer))
+    if (context.request.parseRequest(readBuffer))
     {
         std::cout << "Request parsed successfully, handling..." << std::endl;
         
         // Clear any previous response
-        currentResponse.reset();
+        context.response.reset();
+        setState(PROCESSING_REQUEST);
         
-        // Handle the request
-        handleRequest.handleRequest(currentRequest, currentResponse);
+        // Handle the request (this may set a pending async operation)
+        handleRequest.handleRequest(context.request, context.response, this);
+        
+        // Check if we have an async operation pending
+        if (context.state == WAITING_ASYNC) {
+            std::cout << "Async operation started, waiting for completion..." << std::endl;
+            return true; // Request processed, but response not ready yet
+        }
         
         // CRITICAL FIX: Convert response to string and put in write buffer
-        writeBuffer = currentResponse.toString();
+        writeBuffer = context.response.toString();
         writeOffset = 0;
+        setState(WRITING_RESPONSE);
         
         std::cout << "=== RESPONSE GENERATED ===" << std::endl;
         std::cout << "Response ready, buffer size: " << writeBuffer.size() << " bytes" << std::endl;
@@ -251,13 +267,14 @@ bool ClientConnection::processReadBuffer()
         std::cerr << "Failed to parse request" << std::endl;
         
         // Generate 400 Bad Request response
-        currentResponse.reset();
-        currentResponse.setStatus(400, "Bad Request");
-        currentResponse.setBody("Invalid HTTP request format");
-        currentResponse.setHeader("Content-Type", "text/plain");
+        context.response.reset();
+        context.response.setStatus(400, "Bad Request");
+        context.response.setBody("Invalid HTTP request format");
+        context.response.setHeader("Content-Type", "text/plain");
         
-        writeBuffer = currentResponse.toString();
+        writeBuffer = context.response.toString();
         writeOffset = 0;
+        setState(WRITING_RESPONSE);
         
         return true;
     }
@@ -269,3 +286,173 @@ void ClientConnection::serveStaticFile(const std::string &requestPath)
 void ClientConnection::serve404()
 std::string ClientConnection::getContentType(const std::string &filePath)
 */
+
+// ===== STATE MACHINE MANAGEMENT =====
+
+ConnectionState ClientConnection::getState() const
+{
+    return context.state;
+}
+
+void ClientConnection::setState(ConnectionState newState)
+{
+    std::cout << "ClientConnection: State transition from " << context.state 
+              << " to " << newState << " on socket " << socketFd << std::endl;
+    context.state = newState;
+    updateLastActivity();
+}
+
+// ===== ASYNC OPERATION SUPPORT =====
+
+void ClientConnection::setPendingOperation(AsyncOperation* operation)
+{
+    // Clean up any existing operation
+    if (context.pendingOperation) {
+        context.pendingOperation->cleanup();
+        delete context.pendingOperation;
+    }
+    
+    context.pendingOperation = operation;
+    setState(WAITING_ASYNC);
+    std::cout << "ClientConnection: Set pending async operation on socket " << socketFd << std::endl;
+}
+
+void ClientConnection::completePendingOperation()
+{
+    if (!context.pendingOperation) {
+        std::cerr << "ClientConnection: No pending operation to complete" << std::endl;
+        return;
+    }
+    
+    std::cout << "ClientConnection: Completing async operation on socket " << socketFd << std::endl;
+    
+    if (context.pendingOperation->isComplete()) {
+        if (context.pendingOperation->hasError()) {
+            // Operation failed, generate error response
+            std::cerr << "Async operation failed: " << context.pendingOperation->getError() << std::endl;
+            context.response.reset();
+            context.response.setStatus(500, "Internal Server Error");
+            context.response.setBody("Async operation failed: " + context.pendingOperation->getError());
+            context.response.setHeader("Content-Type", "text/plain");
+        } else {
+            // Operation succeeded, use the result
+            std::string result = context.pendingOperation->getResult();
+            std::cout << "Async operation completed successfully, result size: " << result.size() << " bytes" << std::endl;
+            
+            // Parse CGI output (headers + body)
+            context.response.reset();
+            parseCgiOutput(result);
+        }
+        
+        // Clean up the operation
+        context.pendingOperation->cleanup();
+        delete context.pendingOperation;
+        context.pendingOperation = NULL;
+        
+        // Prepare response for writing
+        writeBuffer = context.response.toString();
+        writeOffset = 0;
+        setState(WRITING_RESPONSE);
+        
+        std::cout << "Response ready for writing, size: " << writeBuffer.size() << " bytes" << std::endl;
+    } else {
+        std::cerr << "ClientConnection: Operation not complete, cannot finish!" << std::endl;
+    }
+}
+
+bool ClientConnection::hasPendingOperation() const
+{
+    return context.pendingOperation != NULL;
+}
+
+AsyncOperation* ClientConnection::getPendingOperation() const
+{
+    return context.pendingOperation;
+}
+
+// ===== STATE QUERIES FOR EVENT LOOP =====
+
+bool ClientConnection::canRead() const
+{
+    return connected && (context.state == READING_REQUEST || context.state == KEEP_ALIVE);
+}
+
+bool ClientConnection::canWrite() const
+{
+    return connected && context.state == WRITING_RESPONSE && !writeBuffer.empty();
+}
+
+bool ClientConnection::isReadyForCleanup() const
+{
+    return !connected || context.state == CLOSING;
+}
+
+// ===== HELPER METHOD FOR CGI OUTPUT PARSING =====
+
+void ClientConnection::parseCgiOutput(const std::string& output)
+{
+    size_t headerEnd = output.find("\r\n\r\n");
+    if (headerEnd == std::string::npos) {
+        headerEnd = output.find("\n\n");
+        if (headerEnd != std::string::npos) {
+            headerEnd += 2;
+        }
+    } else {
+        headerEnd += 4;
+    }
+    
+    if (headerEnd != std::string::npos) {
+        // Parse headers
+        std::string headers = output.substr(0, headerEnd);
+        std::string body = output.substr(headerEnd);
+        
+        std::istringstream headerStream(headers);
+        std::string line;
+        bool statusSet = false;
+        
+        while (std::getline(headerStream, line)) {
+            if (line.empty() || line == "\r") continue;
+            
+            // Remove carriage return if present
+            if (!line.empty() && line[line.length() - 1] == '\r') {
+                line.erase(line.length() - 1);
+            }
+            
+            size_t colonPos = line.find(':');
+            if (colonPos != std::string::npos) {
+                std::string name = line.substr(0, colonPos);
+                std::string value = line.substr(colonPos + 1);
+                
+                // Trim whitespace
+                while (!value.empty() && (value[0] == ' ' || value[0] == '\t')) {
+                    value.erase(0, 1);
+                }
+                
+                if (name == "Status" && !statusSet) {
+                    // Parse status line
+                    size_t spacePos = value.find(' ');
+                    if (spacePos != std::string::npos) {
+                        int statusCode = atoi(value.substr(0, spacePos).c_str());
+                        std::string statusMessage = value.substr(spacePos + 1);
+                        context.response.setStatus(statusCode, statusMessage);
+                        statusSet = true;
+                    }
+                } else {
+                    context.response.setHeader(name, value);
+                }
+            }
+        }
+        
+        // Set default status if not provided
+        if (!statusSet) {
+            context.response.setStatus(200, "OK");
+        }
+        
+        context.response.setBody(body);
+    } else {
+        // No headers found, treat entire output as body
+        context.response.setStatus(200, "OK");
+        context.response.setHeader("Content-Type", "text/html");
+        context.response.setBody(output);
+    }
+}

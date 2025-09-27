@@ -6,7 +6,9 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <cstdio>
-#include"CgiHandler.hpp"
+#include "CgiHandler.hpp"
+#include "CgiOperation.hpp"
+#include "ClientConnection.hpp"
 
 RequestHandler::RequestHandler(const Config &config)
     : config(config)
@@ -18,7 +20,7 @@ RequestHandler::~RequestHandler()
     // Cleanup request handler
 }
 
-void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &response)
+void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &response, ClientConnection* connection)
 {
     std::string method = request.getMethod();
     std::string uri = request.getUri();
@@ -82,17 +84,17 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
         if (method == "GET")
         {
             std::cout << "Processing GET request..." << std::endl;
-            processGetRequest(request, response, serverConfig, locationConfig);
+            processGetRequest(request, response, serverConfig, locationConfig, connection);
         }
         else if (method == "POST")
         {
             std::cout << "Processing POST request..." << std::endl;
-            processPostRequest(request, response, serverConfig, locationConfig);
+            processPostRequest(request, response, serverConfig, locationConfig, connection);
         }
         else if (method == "DELETE")
         {
             std::cout << "Processing DELETE request..." << std::endl;
-            processDeleteRequest(request, response, serverConfig, locationConfig);
+            processDeleteRequest(request, response, serverConfig, locationConfig, connection);
         }
         else
         {
@@ -132,7 +134,8 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
 }
 
 void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse &response, 
-                                     const Config::ServerConfig &server, const Config::LocationConfig &location)
+                                     const Config::ServerConfig &server, const Config::LocationConfig &location,
+                                     ClientConnection* connection)
 {
     std::string uri = request.getUri();
     std::string filePath = resolveFilePath(uri, location, server);
@@ -186,7 +189,7 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
         if (!location.cgiPass.empty())
         {
             std::cout << "GET: CGI configured: " << location.cgiPass << std::endl;
-            executeCgi(request, response, server, location);
+            executeCgi(request, response, server, location, connection);
             return;
         }
         
@@ -205,7 +208,8 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
 }
 
 void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse &response, 
-                                      const Config::ServerConfig &server, const Config::LocationConfig &location)
+                                      const Config::ServerConfig &server, const Config::LocationConfig &location,
+                                      ClientConnection* connection)
 {
     std::string uri = request.getUri();
     
@@ -217,7 +221,7 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
     if (!location.cgiPass.empty())
     {
         std::cout << "POST: CGI configured: " << location.cgiPass << std::endl;
-        executeCgi(request, response, server, location);
+        executeCgi(request, response, server, location, connection);
         return;
     }
 
@@ -257,7 +261,8 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
 }
 
 void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpResponse &response, 
-                                        const Config::ServerConfig &server, const Config::LocationConfig &location)
+                                        const Config::ServerConfig &server, const Config::LocationConfig &location,
+                                        ClientConnection* /* connection */)
 {
     std::string uri = request.getUri();
     std::string filePath = resolveFilePath(uri, location, server);
@@ -456,12 +461,10 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
 }
 
 void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &response, 
-                               const Config::ServerConfig &server, const Config::LocationConfig &location)
+                               const Config::ServerConfig &server, const Config::LocationConfig &location,
+                               ClientConnection* connection)
 {
-    // Basic CGI implementation
     std::cout << "CGI: Executing script with interpreter: " << location.cgiPass << std::endl;
-    
-    CgiHandler cgi(response);
     
     // Get the actual requested file path
     std::string uri = request.getUri();
@@ -487,6 +490,10 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
             }
             else {
                 std::cout << "CGI: Interpreter not found at system or local path: " << relativePath << std::endl;
+                response.setStatus(500, "Internal Server Error");
+                response.setBody("CGI interpreter not found");
+                response.setHeader("Content-Type", "text/plain");
+                return;
             }
         }
         else {
@@ -495,7 +502,33 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
         }
     }
     
-    cgi.ExecuteCgi(scriptPath, interpreterPath, request);
+    // Check if we have a connection for async operation
+    if (connection != NULL) {
+        std::cout << "CGI: Starting async CGI operation" << std::endl;
+        
+        // Create async CGI operation
+        std::string documentRoot = location.root.empty() ? server.root : location.root;
+        CgiOperation* cgiOp = new CgiOperation(scriptPath, interpreterPath, request, documentRoot);
+        
+        // Check if CGI started successfully
+        if (cgiOp->hasError()) {
+            std::cerr << "CGI: Failed to start CGI operation: " << cgiOp->getError() << std::endl;
+            response.setStatus(500, "Internal Server Error");
+            response.setBody("Failed to start CGI script: " + cgiOp->getError());
+            response.setHeader("Content-Type", "text/plain");
+            delete cgiOp;
+            return;
+        }
+        
+        // Set the pending operation on the connection
+        connection->setPendingOperation(cgiOp);
+        std::cout << "CGI: Async operation set, waiting for completion" << std::endl;
+    } else {
+        // Fallback to blocking CGI (should not happen in normal operation)
+        std::cout << "CGI: No connection provided, using blocking CGI (fallback)" << std::endl;
+        CgiHandler cgi(response);
+        cgi.ExecuteCgi(scriptPath, interpreterPath, request);
+    }
 }
 
 void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 

@@ -6,6 +6,34 @@
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
 #include "RequestHandler.hpp"
+#include "AsyncOperation.hpp"
+
+// Connection state machine
+enum ConnectionState {
+    READING_REQUEST,     // Reading HTTP request from client
+    PROCESSING_REQUEST,  // Request complete, being processed
+    WAITING_ASYNC,       // Waiting for async operation (CGI, etc.)
+    WRITING_RESPONSE,    // Writing response to client
+    KEEP_ALIVE,          // Waiting for next request on keep-alive connection
+    CLOSING              // Connection being closed
+};
+
+// Request processing context
+struct RequestContext {
+    HttpRequest request;
+    HttpResponse response;
+    ConnectionState state;
+    
+    // For async operations
+    AsyncOperation* pendingOperation;
+    
+    // Timing
+    time_t startTime;
+    time_t lastActivity;
+    
+    RequestContext() : state(READING_REQUEST), pendingOperation(NULL), 
+                      startTime(time(NULL)), lastActivity(time(NULL)) {}
+};
 
 class ClientConnection
 {
@@ -40,8 +68,24 @@ class ClientConnection
 
     // Buffer management
     void clearBuffers();
+    // Statistics
     size_t getBytesRead() const;
     size_t getBytesWritten() const;
+    
+    // State machine management
+    ConnectionState getState() const;
+    void setState(ConnectionState newState);
+    
+    // Async operation support
+    void setPendingOperation(AsyncOperation* operation);
+    void completePendingOperation();
+    bool hasPendingOperation() const;
+    AsyncOperation* getPendingOperation() const;
+    
+    // State queries for event loop
+    bool canRead() const;
+    bool canWrite() const;
+    bool isReadyForCleanup() const;
 
    private:
     int socketFd;
@@ -50,9 +94,7 @@ class ClientConnection
     std::string readBuffer;
     std::string writeBuffer;
 
-    HttpRequest currentRequest;
-    HttpResponse currentResponse;
-
+    RequestContext context;  // Contains request, response, and state
     RequestHandler &handleRequest;
 
     bool connected;
@@ -70,4 +112,5 @@ class ClientConnection
     void serveStaticFile(const std::string &requestPath);
     std::string getContentType(const std::string &filePath);
     void serve404();
+    void parseCgiOutput(const std::string& output);  // Parse CGI output into headers/body
 };

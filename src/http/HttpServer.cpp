@@ -1,4 +1,6 @@
 #include "HttpServer.hpp"
+#include "AsyncOperation.hpp"
+#include "CgiOperation.hpp"
 
 #include <netinet/in.h>
 
@@ -61,8 +63,21 @@ void HttpServer::run()
             {
                 handleNewConnection(fd);
             }
+            else if (isCgiSocket(fd))
+            {
+                // Handle CGI events
+                if (events[i].events & (EPOLLERR | EPOLLHUP))
+                {
+                    handleCgiError(fd);
+                }
+                else if (events[i].events & EPOLLIN)
+                {
+                    handleCgiRead(fd);
+                }
+            }
             else
             {
+                // Handle client events
                 if (events[i].events & (EPOLLERR | EPOLLHUP))
                 {
                     handleClientError(fd);
@@ -162,8 +177,30 @@ void HttpServer::handleClientRead(int clientFd)
         return;
     }
 
+    // Check if we have an async operation pending
+    if (conn->hasPendingOperation())
+    {
+        AsyncOperation* op = conn->getPendingOperation();
+        int cgiFd = op->getMonitorFd();
+        
+        std::cout << "Async operation started, monitoring CGI FD: " << cgiFd << std::endl;
+        
+        // Register CGI FD with event loop
+        if (eventLoop.add(cgiFd, EPOLLIN))
+        {
+            // Map CGI FD to client connection
+            cgiConnections[cgiFd] = conn;
+            std::cout << "CGI FD " << cgiFd << " registered for monitoring" << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to add CGI FD to event loop" << std::endl;
+            // Cleanup the operation
+            conn->completePendingOperation();
+        }
+    }
     // FIXED: Check if we have a response ready to send
-    if (conn->isReadyToWrite())
+    else if (conn->isReadyToWrite())
     {
         std::cout << "Response ready, switching to write mode" << std::endl;
         eventLoop.modify(clientFd, EPOLLIN | EPOLLOUT);
@@ -249,6 +286,94 @@ bool HttpServer::isServerSocket(int fd) const
         }
     }
     return false;
+}
+
+bool HttpServer::isCgiSocket(int fd) const
+{
+    return cgiConnections.find(fd) != cgiConnections.end();
+}
+
+void HttpServer::handleCgiRead(int cgiFd)
+{
+    std::cout << "Handling CGI read on FD: " << cgiFd << std::endl;
+    
+    std::map<int, ClientConnection*>::iterator it = cgiConnections.find(cgiFd);
+    if (it == cgiConnections.end())
+    {
+        std::cerr << "CGI FD not found in cgiConnections map" << std::endl;
+        return;
+    }
+    
+    ClientConnection* conn = it->second;
+    AsyncOperation* op = conn->getPendingOperation();
+    
+    if (!op)
+    {
+        std::cerr << "No pending operation for CGI FD: " << cgiFd << std::endl;
+        return;
+    }
+    
+    // Let the operation handle the data
+    op->handleData();
+    
+    // Check if operation completed
+    if (op->isComplete())
+    {
+        std::cout << "CGI operation completed on FD: " << cgiFd << std::endl;
+        
+        // Remove CGI FD from event loop
+        eventLoop.remove(cgiFd);
+        cgiConnections.erase(it);
+        
+        // Complete the operation on the client connection
+        conn->completePendingOperation();
+        
+        // Check if response is ready to write
+        if (conn->canWrite())
+        {
+            std::cout << "CGI response ready, switching to write mode" << std::endl;
+            eventLoop.modify(conn->getSocketFd(), EPOLLIN | EPOLLOUT);
+        }
+    }
+}
+
+void HttpServer::handleCgiError(int cgiFd)
+{
+    std::cout << "CGI error/hangup on FD: " << cgiFd << std::endl;
+    
+    std::map<int, ClientConnection*>::iterator it = cgiConnections.find(cgiFd);
+    if (it != cgiConnections.end())
+    {
+        ClientConnection* conn = it->second;
+        AsyncOperation* op = conn->getPendingOperation();
+        
+        if (op) {
+            // EPOLLHUP might just mean CGI finished normally
+            // Let the operation handle any remaining data and check status
+            op->handleData();
+            
+            // Cast to CgiOperation to call forceCompletion
+            CgiOperation* cgiOp = dynamic_cast<CgiOperation*>(op);
+            if (cgiOp && !op->isComplete()) {
+                std::cout << "CGI operation not complete after EPOLLHUP, forcing completion" << std::endl;
+                cgiOp->forceCompletion();
+            }
+        }
+        
+        // Complete the operation
+        conn->completePendingOperation();
+        
+        // Remove from event loop and cleanup
+        eventLoop.remove(cgiFd);
+        cgiConnections.erase(it);
+        
+        // Check if we need to send response
+        if (conn->canWrite())
+        {
+            std::cout << "CGI finished, switching to write mode for response" << std::endl;
+            eventLoop.modify(conn->getSocketFd(), EPOLLIN | EPOLLOUT);
+        }
+    }
 }
 
 void HttpServer::checkTimeouts()

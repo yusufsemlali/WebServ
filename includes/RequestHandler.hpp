@@ -8,24 +8,31 @@
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
 
+// Forward declaration to avoid circular dependency
+class ClientConnection;
+
 class RequestHandler
 {
 public:
     RequestHandler(const Config &config);
     ~RequestHandler();
 
-    void handleRequest(const HttpRequest &request, HttpResponse &response);
+    // Main request handling - now takes ClientConnection for async operations
+    void handleRequest(const HttpRequest &request, HttpResponse &response, ClientConnection* connection = NULL);
 
 private:
     const Config &config;
 
     // Main request processing methods
     void processGetRequest(const HttpRequest &request, HttpResponse &response, 
-                          const Config::ServerConfig &server, const Config::LocationConfig &location);
+                          const Config::ServerConfig &server, const Config::LocationConfig &location,
+                          ClientConnection* connection = NULL);
     void processPostRequest(const HttpRequest &request, HttpResponse &response, 
-                           const Config::ServerConfig &server, const Config::LocationConfig &location);
+                           const Config::ServerConfig &server, const Config::LocationConfig &location,
+                           ClientConnection* connection = NULL);
     void processDeleteRequest(const HttpRequest &request, HttpResponse &response, 
-                             const Config::ServerConfig &server, const Config::LocationConfig &location);
+                             const Config::ServerConfig &server, const Config::LocationConfig &location,
+                             ClientConnection* connection = NULL);
 
     // Content serving methods
     void serveStaticFile(const std::string &filePath, HttpResponse &response);
@@ -34,7 +41,8 @@ private:
 
     // Special handling methods
     void executeCgi(const HttpRequest &request, HttpResponse &response, 
-                   const Config::ServerConfig &server, const Config::LocationConfig &location);
+                   const Config::ServerConfig &server, const Config::LocationConfig &location,
+                   ClientConnection* connection = NULL);
     void handleRedirect(HttpResponse &response, const Config::LocationConfig &location);
     void handleFileUpload(const HttpRequest &request, HttpResponse &response, 
                          const Config::ServerConfig &server, const Config::LocationConfig &location);
