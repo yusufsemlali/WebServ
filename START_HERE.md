@@ -19,7 +19,7 @@ CtrlSyn pushed commit `43517545f04fd9e82253652964e86a1bb7974b9e` directly to the
 ➡️ **[INDEX_BRANCH_ISSUE.md](INDEX_BRANCH_ISSUE.md)** - Navigation guide to all documentation
 
 ### 🔧 To Fix the Issue
-➡️ **[FIX_BRANCH_ISSUE.sh](FIX_BRANCH_ISSUE.sh)** - Run this automated script
+➡️ **[FIX_BRANCH_ISSUE.sh](FIX_BRANCH_ISSUE.sh)** - Run this automated script (requires push access to main/anas branches)
 
 ---
 
@@ -72,11 +72,13 @@ All documentation is in this directory:
 
 ## Quick Actions
 
+**Note**: Run these commands from the repository root directory.
+
 ```bash
 # Read the quick summary
 cat QUICK_REFERENCE.md
 
-# Fix the issue (requires push access)
+# Fix the issue (requires push access to main/anas branches)
 ./FIX_BRANCH_ISSUE.sh
 
 # Browse all documentation
