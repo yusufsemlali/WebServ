@@ -4,7 +4,7 @@
 **Did ctrlsyn push his latest update to the main branch instead of his own branch anas?**
 
 ## The Answer
-# ✅ YES
+**✅ YES**
 
 ## Evidence Summary
 | Item | Details |

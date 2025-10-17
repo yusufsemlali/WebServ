@@ -3,7 +3,7 @@
 ## Question
 Did ctrlsyn push his latest update to the main branch instead of his own branch anas?
 
-## Answer
+## The Answer
 **YES**, ctrlsyn (CtrlSyn) did push his latest update to the main branch instead of the anas branch.
 
 ## Evidence

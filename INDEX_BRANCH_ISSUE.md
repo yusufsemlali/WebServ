@@ -7,7 +7,7 @@ This directory contains complete documentation about a Git branch issue where Ct
 
 **Question**: Did ctrlsyn push his latest update to the main branch instead of his own branch anas?
 
-**Answer**: **YES** ✅
+**The Answer**: **YES** ✅
 
 **Start here**: [QUICK_REFERENCE.md](QUICK_REFERENCE.md)
 
@@ -89,7 +89,7 @@ Executable script to automatically fix the branch issue.
 
 ## 📦 What's Included
 
-```
+```text
 Branch Issue Documentation/
 ├── INDEX_BRANCH_ISSUE.md        (This file - navigation guide)
 ├── QUICK_REFERENCE.md           (Fast facts and commands)
@@ -161,7 +161,7 @@ Before fixing:
 - [ ] Read BRANCH_ISSUE_README.md
 - [ ] Verify you have push access to main and anas
 - [ ] Notify team of upcoming branch changes
-- [ ] Backup current branch states (git branch backup-main origin/main)
+- [ ] Backup current branch states (git checkout -b backup-main origin/main && git checkout -b backup-anas origin/anas)
 
 Applying fix:
 - [ ] Run FIX_BRANCH_ISSUE.sh OR apply manual commands

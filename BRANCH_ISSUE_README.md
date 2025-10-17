@@ -3,7 +3,7 @@
 ## Problem Statement
 Did ctrlsyn push his latest update to the main branch instead of his own branch anas?
 
-**Answer: YES**
+**The Answer: YES**
 
 ## The Issue
 
