@@ -57,7 +57,9 @@ void HttpServer::run()
         for (int i = 0; i < eventCount; ++i)
         {
             int fd = events[i].data.fd;
+#ifdef VERBOSE_LOGGING
             std::cout << "Event on FD " << fd << " with events: " << events[i].events << std::endl;
+#endif
             
             if (isServerSocket(fd))
             {
@@ -151,6 +153,8 @@ void HttpServer::handleNewConnection(int serverFd)
     std::cout << "New connection accepted on fd: " << clientFd << std::endl;
 
     connections[clientFd] = new ClientConnection(clientFd, clientAddr, requestHandler);
+    
+    connections[clientFd]->setServerFd(serverFd);    
 
     if (!eventLoop.add(clientFd, EPOLLIN))
     {
@@ -160,7 +164,9 @@ void HttpServer::handleNewConnection(int serverFd)
 
 void HttpServer::handleClientRead(int clientFd)
 {
+#ifdef VERBOSE_LOGGING
     std::cout << "Handling read on client FD: " << clientFd << std::endl;
+#endif
     
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
     if (it == connections.end()) 
@@ -268,7 +274,7 @@ void HttpServer::closeConnection(int clientFd)
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
     if (it != connections.end())
     {
-        delete it->second;  // This calls ClientConnection destructor which closes the socket
+        delete it->second; 
         connections.erase(it);
     }
     

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 Page Not Found</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .error-container {
+            max-width: 600px;
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .error-code {
+            font-size: 6rem;
+            font-weight: bold;
+            color: #ffc107;
+            margin: 0;
+            line-height: 1;
+        }
+        .error-title {
+            font-size: 1.5rem;
+            color: #343a40;
+            margin: 10px 0 20px 0;
+        }
+        .error-description {
+            color: #6c757d;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .error-details {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+            text-align: left;
+        }
+        .suggestions {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #6c757d;
+            text-align: left;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .back-link:hover {
+            background-color: #0056b3;
+        }
+        .server-info {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <div class="error-title">Page Not Found</div>
+        <div class="error-description">
+            The requested resource could not be found on this server.
+        </div>
+        
+        <div class="error-details">
+            <strong>What happened?</strong><br>
+            The URL you requested doesn't exist or has been moved.
+        </div>
+        
+        <div class="suggestions">
+            <strong>What can you do?</strong><br>
+            • Check the URL for typos<br>
+            • Go back to the previous page<br>
+            • Visit our homepage<br>
+            • Use the navigation menu
+        </div>
+        
+        <a href="/" class="back-link">← Back to Home</a>
+        
+        <div class="server-info">
+            WebServ/1.0 - HTTP Server
+        </div>
+    </div>
+</body>
+</html>

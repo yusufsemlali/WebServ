@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>413 Payload Too Large</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .error-container {
+            max-width: 600px;
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .error-code {
+            font-size: 6rem;
+            font-weight: bold;
+            color: #e83e8c;
+            margin: 0;
+            line-height: 1;
+        }
+        .error-title {
+            font-size: 1.5rem;
+            color: #343a40;
+            margin: 10px 0 20px 0;
+        }
+        .error-description {
+            color: #6c757d;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .error-details {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 20px 0;
+            border-left: 4px solid #e83e8c;
+            text-align: left;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .back-link:hover {
+            background-color: #0056b3;
+        }
+        .server-info {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">413</div>
+        <div class="error-title">Payload Too Large</div>
+        <div class="error-description">
+            The request payload is larger than the server is willing or able to process.
+        </div>
+        
+        <div class="error-details">
+            <strong>What you can do:</strong><br>
+            • Reduce the size of your upload<br>
+            • Split large files into smaller chunks<br>
+            • Compress your data before uploading<br>
+            • Contact admin to increase limits
+        </div>
+        
+        <div class="error-description">
+            The server has limits on request body size for security and performance reasons.
+        </div>
+        
+        <a href="/" class="back-link">← Back to Home</a>
+        
+        <div class="server-info">
+            WebServ/1.0 - HTTP Server
+        </div>
+    </div>
+</body>
+</html>

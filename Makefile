@@ -55,6 +55,9 @@ debug: CXXFLAGS += -DDEBUG
 debug: re
 # 	./$(NAME) $(CONFIG_FILE)
 
+verbose: CXXFLAGS += -DVERBOSE_LOGGING
+verbose: re
+
 bonus: CXXFLAGS += -D BONUS
 bonus: $(BONUS_NAME)
 
@@ -162,6 +165,6 @@ analyze-valgrind:
 	@./analyze_valgrind.sh
 
 
-.PHONY: all debug bonus clean fclean re sanitize valgrind valgrind-full valgrind-helgrind analyze-valgrind
+.PHONY: all debug verbose bonus clean fclean re sanitize valgrind valgrind-full valgrind-helgrind analyze-valgrind
 .SECONDARY: $(OBJS)
 

@@ -46,6 +46,7 @@ class ClientConnection
     bool writeData();
     void close();
     bool isConnected() const;
+    void setServerFd(int serverFd);
 
     // Request/Response handling
     bool hasCompleteRequest() const;
@@ -89,6 +90,7 @@ class ClientConnection
 
    private:
     int socketFd;
+    int serverFd;
     std::string clientAddress;
 
     std::string readBuffer;

@@ -69,10 +69,12 @@ bool ClientConnection::readData()
     bytesRead += bytesReadNow;
     updateLastActivity();
 
+#ifdef VERBOSE_LOGGING
     // ADDED: Print raw request data as it comes in
     std::cout << "=== RAW REQUEST DATA RECEIVED ===" << std::endl;
     std::cout << readBuffer << std::endl;
     std::cout << "=== END RAW REQUEST DATA ===" << std::endl;
+#endif
 
     if (processReadBuffer())
     {
@@ -90,17 +92,21 @@ bool ClientConnection::writeData()
         return false;
     }
 
+#ifdef VERBOSE_LOGGING
     // FIXED: Added debug info for write operations
     std::cout << "Writing data to socket " << socketFd << std::endl;
     std::cout << "Write buffer size: " << writeBuffer.size() << " bytes" << std::endl;
     std::cout << "Write offset: " << writeOffset << std::endl;
+#endif
 
     ssize_t bytesWrittenNow = send(socketFd, writeBuffer.data() + writeOffset, writeBuffer.size() - writeOffset, 0);
     if (bytesWrittenNow < 0)
     {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
+#ifdef VERBOSE_LOGGING
             std::cout << "Socket would block, will retry later" << std::endl;
+#endif
             return true; // Not an error, just need to try again
         }
         std::cerr << "Error writing to socket: " << strerror(errno) << std::endl;
@@ -112,18 +118,24 @@ bool ClientConnection::writeData()
     writeOffset += bytesWrittenNow;
     updateLastActivity();
 
+#ifdef VERBOSE_LOGGING
     std::cout << "Wrote " << bytesWrittenNow << " bytes to socket" << std::endl;
+#endif
 
     // Check if we've sent everything
     if (writeOffset >= writeBuffer.size())
     {
+#ifdef VERBOSE_LOGGING
         std::cout << "Complete response sent successfully" << std::endl;
+#endif
         writeBuffer.clear();
         writeOffset = 0;
         return true;  // Complete response sent
     }
 
+#ifdef VERBOSE_LOGGING
     std::cout << "Partial write, " << (writeBuffer.size() - writeOffset) << " bytes remaining" << std::endl;
+#endif
     return false;  // Partial write, need to continue later
 }
 
@@ -143,6 +155,11 @@ void ClientConnection::close()
 bool ClientConnection::isConnected() const
 {
     return connected;
+}
+
+void ClientConnection::setServerFd(int serverFd)
+{
+    this->serverFd = serverFd;
 }
 
 bool ClientConnection::hasCompleteRequest() const
@@ -223,18 +240,24 @@ bool ClientConnection::processReadBuffer()
 {
     if (!hasCompleteRequest())
     {
+#ifdef VERBOSE_LOGGING
         std::cout << "Request not complete yet, waiting for more data..." << std::endl;
+#endif
         return false;
     }
 
+#ifdef VERBOSE_LOGGING
     std::cout << "=== COMPLETE RAW REQUEST RECEIVED ===" << std::endl;
     std::cout << readBuffer << std::endl;
     std::cout << "=== END COMPLETE RAW REQUEST ===" << std::endl;
+#endif
 
     // Parse and handle the request
     if (context.request.parseRequest(readBuffer))
     {
+#ifdef VERBOSE_LOGGING
         std::cout << "Request parsed successfully, handling..." << std::endl;
+#endif
         
         // Clear any previous response
         context.response.reset();
@@ -245,7 +268,9 @@ bool ClientConnection::processReadBuffer()
         
         // Check if we have an async operation pending
         if (context.state == WAITING_ASYNC) {
+#ifdef VERBOSE_LOGGING
             std::cout << "Async operation started, waiting for completion..." << std::endl;
+#endif
             return true; // Request processed, but response not ready yet
         }
         
@@ -254,11 +279,13 @@ bool ClientConnection::processReadBuffer()
         writeOffset = 0;
         setState(WRITING_RESPONSE);
         
+#ifdef VERBOSE_LOGGING
         std::cout << "=== RESPONSE GENERATED ===" << std::endl;
         std::cout << "Response ready, buffer size: " << writeBuffer.size() << " bytes" << std::endl;
         std::cout << "Response preview:" << std::endl;
         std::cout << writeBuffer.substr(0, 200) << "..." << std::endl;
         std::cout << "=== END RESPONSE PREVIEW ===" << std::endl;
+#endif
         
         return true; // Request processed, response ready
     }
@@ -296,8 +323,10 @@ ConnectionState ClientConnection::getState() const
 
 void ClientConnection::setState(ConnectionState newState)
 {
+#ifdef VERBOSE_LOGGING
     std::cout << "ClientConnection: State transition from " << context.state 
               << " to " << newState << " on socket " << socketFd << std::endl;
+#endif
     context.state = newState;
     updateLastActivity();
 }
@@ -314,17 +343,23 @@ void ClientConnection::setPendingOperation(AsyncOperation* operation)
     
     context.pendingOperation = operation;
     setState(WAITING_ASYNC);
+#ifdef VERBOSE_LOGGING
     std::cout << "ClientConnection: Set pending async operation on socket " << socketFd << std::endl;
+#endif
 }
 
 void ClientConnection::completePendingOperation()
 {
     if (!context.pendingOperation) {
+#ifdef VERBOSE_LOGGING
         std::cerr << "ClientConnection: No pending operation to complete" << std::endl;
+#endif
         return;
     }
     
+#ifdef VERBOSE_LOGGING
     std::cout << "ClientConnection: Completing async operation on socket " << socketFd << std::endl;
+#endif
     
     if (context.pendingOperation->isComplete()) {
         if (context.pendingOperation->hasError()) {
@@ -337,7 +372,9 @@ void ClientConnection::completePendingOperation()
         } else {
             // Operation succeeded, use the result
             std::string result = context.pendingOperation->getResult();
+#ifdef VERBOSE_LOGGING
             std::cout << "Async operation completed successfully, result size: " << result.size() << " bytes" << std::endl;
+#endif
             
             // Parse CGI output (headers + body)
             context.response.reset();
@@ -354,7 +391,9 @@ void ClientConnection::completePendingOperation()
         writeOffset = 0;
         setState(WRITING_RESPONSE);
         
+#ifdef VERBOSE_LOGGING
         std::cout << "Response ready for writing, size: " << writeBuffer.size() << " bytes" << std::endl;
+#endif
     } else {
         std::cerr << "ClientConnection: Operation not complete, cannot finish!" << std::endl;
     }

@@ -25,9 +25,12 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     std::string method = request.getMethod();
     std::string uri = request.getUri();
 
-    std::cout << "\n======================================" << std::endl;
+    // Keep main request log - this is important
     std::cout << "Processing " << method << " request for " << uri << std::endl;
+
+#ifdef VERBOSE_LOGGING
     std::cout << "======================================" << std::endl;
+#endif
 
     // 1. Validate request
     if (!isValidRequest(request))
@@ -101,6 +104,7 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
             serveErrorPage(501, response, serverConfig);
         }
         
+#ifdef VERBOSE_LOGGING
         // PRINT THE RESPONSE AFTER PROCESSING
         std::cout << "\n--- FINAL RESPONSE GENERATED ---" << std::endl;
         // response.printResponse();
@@ -119,6 +123,7 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
         }
         if (rawResponse.length() > 300) std::cout << "\n... (truncated)";
         std::cout << "\n=========================\n" << std::endl;
+#endif
     }
     catch (const std::exception &e)
     {
@@ -733,29 +738,39 @@ bool RequestHandler::isMethodAllowed(const std::string &method, const Config::Lo
 
 bool RequestHandler::isValidRequest(const HttpRequest &request) const
 {
+#ifdef VERBOSE_LOGGING
     std::cout << "VALIDATION: Checking request validity..." << std::endl;
+#endif
     
     if (!request.isComplete())
     {
+#ifdef VERBOSE_LOGGING
         std::cerr << "VALIDATION: Request parsing incomplete" << std::endl;
+#endif
         return false;
     }
 
     if (!request.isValidMethod())
     {
+#ifdef VERBOSE_LOGGING
         std::cerr << "VALIDATION: Invalid HTTP method: " << request.getMethod() << std::endl;
+#endif
         return false;
     }
 
     if (!request.isValidVersion())
     {
+#ifdef VERBOSE_LOGGING
         std::cerr << "VALIDATION: Invalid HTTP version: " << request.getVersion() << std::endl;
+#endif
         return false;
     }
 
     if (!request.isValidUri())
     {
+#ifdef VERBOSE_LOGGING
         std::cerr << "VALIDATION: Invalid URI: " << request.getUri() << std::endl;
+#endif
         return false;
     }
 
@@ -764,12 +779,16 @@ bool RequestHandler::isValidRequest(const HttpRequest &request) const
         std::string contentLength = request.getHeader("content-length");
         if (contentLength.empty())
         {
+#ifdef VERBOSE_LOGGING
             std::cerr << "VALIDATION: POST request missing Content-Length header" << std::endl;
+#endif
             return false;
         }
     }
 
+#ifdef VERBOSE_LOGGING
     std::cout << "VALIDATION: Request is valid" << std::endl;
+#endif
     return true;
 }
 

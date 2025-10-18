@@ -24,6 +24,15 @@ SocketManager::~SocketManager()
 
 bool SocketManager::createServerSocket(const Config::ListenConfig &listenConfig, const Config::ServerConfig *serverConfig)
 {
+    std::string listenKey = listenConfig.host + ":" + listenConfig.port;
+    std::map<std::string, int>::iterator it = listenAddressToSocket.find(listenKey);
+    
+    if (it != listenAddressToSocket.end())
+    {
+        serverConfigs[it->second].push_back(serverConfig);
+        return true;
+    }
+    
     int serverFd = createSocket();
     if (serverFd < 0)
     {
@@ -35,13 +44,15 @@ bool SocketManager::createServerSocket(const Config::ListenConfig &listenConfig,
         return false;
     }
     serverSockets.push_back(serverFd);
-    serverConfigs[serverFd] = serverConfig;
+    serverConfigs[serverFd].push_back(serverConfig);
+    listenAddressToSocket[listenKey] = serverFd;
+
     return true;
 }
 
 void SocketManager::closeAllSockets()
 {
-    cleanup();  // Reuse the cleanup logic
+    cleanup(); 
 }
 
 int SocketManager::acceptConnection(int serverFd, struct sockaddr_in &outClientAddr)
@@ -54,7 +65,6 @@ int SocketManager::acceptConnection(int serverFd, struct sockaddr_in &outClientA
         return -1;
     }
 
-    // Set the client socket to non-blocking mode
     if (!setNonBlocking(clientFd))
     {
         std::cerr << "Failed to set client socket to non-blocking mode" << std::endl;
@@ -105,7 +115,7 @@ bool SocketManager::bindAndListen(int fd, const std::string &host, const std::st
     ft_memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    hints.ai_flags = AI_PASSIVE;  // Use the local address
+    hints.ai_flags = AI_PASSIVE; 
 
     int status = getaddrinfo(host.c_str(), port.c_str(), &hints, &servinfo);
     if (status != 0)
@@ -142,14 +152,14 @@ const std::map<int, ClientConnection *> &SocketManager::getClientConnections() c
     return clientConnections;
 }
 
-const Config::ServerConfig *SocketManager::getServerConfig(int serverFd) const
+const std::vector<const Config::ServerConfig *> *SocketManager::getServerConfigs(int serverFd) const
 {
-    std::map<int, const Config::ServerConfig *>::const_iterator it = serverConfigs.find(serverFd);
+    std::map<int, std::vector<const Config::ServerConfig *> >::const_iterator it = serverConfigs.find(serverFd);
     if (it != serverConfigs.end())
     {
-        return it->second;
+        return &it->second;
     }
-    return NULL;  // Server FD not found
+    return NULL;
 }
 
 int SocketManager::createSocket()
@@ -183,14 +193,6 @@ bool SocketManager::setSocketOptions(int fd)
         std::cerr << "Failed to set SO_REUSEADDR: " << strerror(errno) << std::endl;
         return false;
     }
-
-    // Also set SO_REUSEPORT for better handling of multiple processes
-    // if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) < 0)
-    // {
-    //     std::cerr << "Failed to set SO_REUSEPORT: " << strerror(errno) << std::endl;
-    //     return false;
-    // }
-
     return true;
 }
 
@@ -211,7 +213,8 @@ void SocketManager::cleanup()
         }
     }
     serverSockets.clear();
-    serverConfigs.clear();  // Clear server config mappings
+    serverConfigs.clear();
+    listenAddressToSocket.clear();
 
     // Close all client connections
     for (std::map<int, ClientConnection *>::iterator it = clientConnections.begin();

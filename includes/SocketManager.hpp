@@ -29,12 +29,13 @@ class SocketManager
 				// Getters
 				const std::vector<int> &getServerSockets() const;
 				const std::map<int, ClientConnection *> &getClientConnections() const;
-				const Config::ServerConfig *getServerConfig(int serverFd) const;
+				const std::vector<const Config::ServerConfig *> *getServerConfigs(int serverFd) const;
 
 			 private:
 				std::vector<int> serverSockets;
 				std::map<int, ClientConnection *> clientConnections;
-				std::map<int, const Config::ServerConfig *> serverConfigs;	// Map server FD to server config
+				std::map<int, std::vector<const Config::ServerConfig *> > serverConfigs;
+				std::map<std::string, int> listenAddressToSocket;
 
 				// Helper methods
 				int createSocket();
