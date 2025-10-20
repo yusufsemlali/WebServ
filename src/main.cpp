@@ -9,11 +9,10 @@
 
 int main(void)
 {
-    // handle signal interupts
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
     signal(SIGQUIT, signalHandler);
-    signal(SIGPIPE, SIG_IGN);  // Ignore SIGPIPE to prevent crashes on broken pipes
+    signal(SIGPIPE, SIG_IGN);
 
     try
     {
@@ -21,7 +20,6 @@ int main(void)
         Config config = parse(configFilePath);
         std::cout << "Configuration file parsed successfully." << std::endl;
 
-        // Parse and validate the configuration
         config.validateAndParseConfig();
 
 #ifdef DEBUG
@@ -40,7 +38,6 @@ int main(void)
         std::cout << "Starting HTTP server..." << std::endl;
         server.run();
 
-        // Clean up global pointer
         g_server = NULL;
 
         return 0;

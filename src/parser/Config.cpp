@@ -24,14 +24,12 @@ void Config::validateAndParseConfig()
 
 void Config::parseServerConfig(ServerConfig &server)
 {
-        // Validate all directives first
         for (std::map<std::string, std::vector<std::string> >::iterator it = server.directives.begin();
              it != server.directives.end(); ++it)
         {
                 validateDirectiveValues(it->first, it->second);
         }
 
-        // Parse listen directives
         if (server.directives.find("listen") != server.directives.end())
         {
                 const std::vector<std::string> &listenValues = server.directives["listen"];
@@ -40,42 +38,44 @@ void Config::parseServerConfig(ServerConfig &server)
                         server.listenConfigs.push_back(parseListenDirective(listenValues[i]));
                 }
         }
+        else
+        {
+                ListenConfig defaultConfig;
+                defaultConfig.host = "0.0.0.0";
+                defaultConfig.port = "8080";
+                defaultConfig.isDefault = true;
+                server.listenConfigs.push_back(defaultConfig);
+        }
 
-        // Parse server_name
         if (server.directives.find("server_name") != server.directives.end())
         {
                 server.serverNames = server.directives["server_name"];
         }
 
-        // Parse root
         if (server.directives.find("root") != server.directives.end())
         {
-                server.root = server.directives["root"].back(); // Use last value
+                server.root = server.directives["root"].back();
         }
 
-        // Parse index
         if (server.directives.find("index") != server.directives.end())
         {
-                server.index = server.directives["index"].back(); // Use last value
+                server.index = server.directives["index"].back();
         }
 
-        // Parse methods
         if (server.directives.find("methods") != server.directives.end())
         {
                 server.allowedMethods = parseMethodsDirective(server.directives["methods"]);
         }
 
-        // Parse autoindex
         if (server.directives.find("autoindex") != server.directives.end())
         {
                 server.autoindex = parseAutoindexDirective(server.directives["autoindex"].back());
         }
         else
         {
-                server.autoindex = false; // Default
+                server.autoindex = false;
         }
 
-        // Parse client_size
         if (server.directives.find("client_size") != server.directives.end())
         {
                 server.clientMaxBodySize = parseClientSizeDirective(server.directives["client_size"].back());
@@ -86,16 +86,14 @@ void Config::parseServerConfig(ServerConfig &server)
         }
         else
         {
-                server.clientMaxBodySize = 1048576; // Default 1MB
+                server.clientMaxBodySize = 1048576;
         }
 
-        // Parse error_page
         if (server.directives.find("error_page") != server.directives.end())
         {
                 server.errorPages = parseErrorPageDirective(server.directives["error_page"]);
         }
 
-        // Parse location blocks
         for (size_t i = 0; i < server.locations.size(); ++i)
         {
                 parseLocationConfig(server.locations[i]);
@@ -104,32 +102,27 @@ void Config::parseServerConfig(ServerConfig &server)
 
 void Config::parseLocationConfig(LocationConfig &location)
 {
-        // Validate all location directives first
         for (std::map<std::string, std::vector<std::string> >::iterator it = location.directives.begin();
              it != location.directives.end(); ++it)
         {
                 validateDirectiveValues(it->first, it->second);
         }
 
-        // Parse methods
         if (location.directives.find("methods") != location.directives.end())
         {
                 location.allowedMethods = parseMethodsDirective(location.directives["methods"]);
         }
 
-        // Parse root
         if (location.directives.find("root") != location.directives.end())
         {
                 location.root = location.directives["root"].back();
         }
 
-        // Parse index
         if (location.directives.find("index") != location.directives.end())
         {
                 location.index = location.directives["index"].back();
         }
 
-        // Parse autoindex
         if (location.directives.find("autoindex") != location.directives.end())
         {
                 location.autoindex = parseAutoindexDirective(location.directives["autoindex"].back());
@@ -139,29 +132,25 @@ void Config::parseLocationConfig(LocationConfig &location)
                 location.autoindex = false;
         }
 
-        // Parse client_size
         if (location.directives.find("client_size") != location.directives.end())
         {
                 location.clientMaxBodySize = parseClientSizeDirective(location.directives["client_size"].back());
         }
         else
         {
-                location.clientMaxBodySize = 0; // Inherit from server
+                location.clientMaxBodySize = 0;
         }
 
-        // Parse cgi_pass
         if (location.directives.find("cgi_pass") != location.directives.end())
         {
                 location.cgiPass = location.directives["cgi_pass"].back();
         }
 
-        // Parse return
         if (location.directives.find("return") != location.directives.end())
         {
                 location.returnUrl = location.directives["return"].back();
         }
 
-        // Parse error_page
         if (location.directives.find("error_page") != location.directives.end())
         {
                 location.errorPages = parseErrorPageDirective(location.directives["error_page"]);
@@ -171,20 +160,38 @@ void Config::parseLocationConfig(LocationConfig &location)
 Config::ListenConfig Config::parseListenDirective(const std::string &value)
 {
         ListenConfig config;
-        config.host = "0.0.0.0"; // Default
-        config.port = "8080";    // Default
+        config.host = "0.0.0.0";
+        config.port = "8080";
         config.isDefault = false;
 
         if (value.find(':') != std::string::npos)
         {
-                // Format: host:port
                 size_t colonPos = value.find(':');
-                config.host = value.substr(0, colonPos);
+                std::string host = value.substr(0, colonPos);
+                config.host = (host == "*") ? "0.0.0.0" : host;
                 config.port = value.substr(colonPos + 1);
         }
         else
         {
-                config.port = value;
+                bool isNumeric = true;
+                for (size_t i = 0; i < value.length(); ++i)
+                {
+                        if (!std::isdigit(value[i]))
+                        {
+                                isNumeric = false;
+                                break;
+                        }
+                }
+
+                if (isNumeric)
+                {
+                        config.port = value;
+                }
+                else
+                {
+                        config.host = (value == "*") ? "0.0.0.0" : value;
+                        config.port = "8080";
+                }
         }
 
         return config;
@@ -196,7 +203,6 @@ std::set<std::string> Config::parseMethodsDirective(const std::vector<std::strin
         for (size_t i = 0; i < values.size(); ++i)
         {
                 std::string method = values[i];
-                // Convert to uppercase
                 std::transform(method.begin(), method.end(), method.begin(), ::toupper);
                 methods.insert(method);
         }
@@ -220,7 +226,6 @@ std::vector<Config::ErrorPageConfig> Config::parseErrorPageDirective(const std::
 {
         std::vector<ErrorPageConfig> errorPages;
 
-        // Format: error_page 404 404.html 500 500.html;
         for (size_t i = 0; i < values.size(); i += 2)
         {
                 if (i + 1 < values.size())
@@ -236,7 +241,6 @@ std::vector<Config::ErrorPageConfig> Config::parseErrorPageDirective(const std::
         return errorPages;
 }
 
-// Enhanced validation methods
 void Config::validateDirectiveValues(const std::string &directive, const std::vector<std::string> &values)
 {
         if (values.empty())
@@ -353,7 +357,6 @@ void Config::validateListenValue(const std::string &value)
 {
         if (value.find(':') != std::string::npos)
         {
-                // Format: host:port
                 size_t colonPos = value.find(':');
                 std::string host = value.substr(0, colonPos);
                 std::string portStr = value.substr(colonPos + 1);
@@ -370,12 +373,10 @@ void Config::validateListenValue(const std::string &value)
         }
         else
         {
-                // Just port number
                 std::istringstream iss(value);
                 int port;
                 if (!(iss >> port))
                 {
-                        // Might be hostname only
                         validateHostname(value);
                 }
                 else
@@ -417,7 +418,6 @@ void Config::validateServerName(const std::string &serverName)
         {
                 throwValidationError("server_name", serverName, "server name cannot be empty");
         }
-        // Allow version strings like "webserv/3.0"
         if (serverName.find(' ') != std::string::npos)
         {
                 throwValidationError("server_name", serverName, "server name cannot contain spaces");
@@ -442,7 +442,7 @@ void Config::validateClientSize(const std::string &value)
         {
                 throwValidationError("client_size", value, "client size must be a number");
         }
-        if (size > 1073741824) // 1GB limit
+        if (size > 1073741824)
         {
                 throwValidationError("client_size", value, "client size cannot exceed 1GB (1073741824 bytes)");
         }
@@ -470,7 +470,7 @@ void Config::validateCgiPath(const std::string &path)
         {
                 throwValidationError("cgi_pass", path, "CGI path cannot be empty");
         }
-        if (path[0] != '.' &&  path[1] != '/')
+        if (path[0] != '.' && path[1] != '/')
         {
                 throwValidationError("cgi_pass", path, "CGI path must be a relative path starting with './'");
         }
@@ -497,24 +497,20 @@ bool Config::isValidHostname(const std::string &host)
         if (host.empty() || host.length() > 253)
                 return false;
 
-        // Allow localhost, IP addresses, and domain names
-        if (host == "localhost" || host == "0.0.0.0")
+        if (host == "*" || host == "localhost" || host == "0.0.0.0")
                 return true;
 
-        // Basic IP address validation (simplified)
         if (host.find_first_not_of("0123456789.") == std::string::npos)
         {
-                // Count dots for IP validation
                 size_t dotCount = 0;
                 for (size_t i = 0; i < host.length(); ++i)
                 {
                         if (host[i] == '.')
                                 dotCount++;
                 }
-                return dotCount == 3; // IPv4 has 3 dots
+                return dotCount == 3;
         }
 
-        // Basic hostname validation
         return host.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-") == std::string::npos;
 }
 
@@ -523,11 +519,9 @@ bool Config::isValidFilePath(const std::string &path)
         if (path.empty())
                 return false;
 
-        // Must start reltive path ./
         if (path[0] != '.' || path[1] != '/')
                 return false;
 
-        // Cannot contain dangerous sequences
         if (path.find("..") != std::string::npos)
                 return false;
 

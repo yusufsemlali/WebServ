@@ -136,8 +136,15 @@ bool HttpServer::initializeServers()
             std::cerr << "Failed to add server socket " << serverSockets[i] << " to event loop" << std::endl;
             return false;
         }
-        std::cout << "Server listening on socket " << serverSockets[i] << std::endl;
     }
+
+    std::cout << "Server listening on sockets : ";
+    for(size_t i = 0; i < serverSockets.size(); ++i)
+    {
+        std::cout << serverSockets[i] << ", ";
+    }
+    std::cout << std::endl;
+
     return true;
 }
 

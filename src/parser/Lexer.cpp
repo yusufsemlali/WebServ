@@ -126,7 +126,7 @@ void Lexer::skipWhitespaceAndComments()
                         }
                         else
                         {
-                                current--; // Back up since this isn't a comment
+                                current--; 
                                 return;
                         }
                         break;
@@ -147,11 +147,9 @@ Token Lexer::makeToken(TokenType::e type)
 
 Token Lexer::scanToken()
 {
-        // Remember to set 'start = current;' before calling this
 
         if (isAtEnd())
         {
-                // If we're at the end, return an empty token that won't be processed
                 Token token;
                 token.type = TokenType(TokenType::END_OF_FILE);
                 token.lexeme = "";
@@ -184,7 +182,6 @@ Token Lexer::makeWord()
 
         std::string lexeme = source.substr(start, current - start);
 
-        // After getting the whole word, decide if it's a directive or a value
         if (DIRECTIVES.count(lexeme))
         {
                 Token token;

@@ -24,7 +24,6 @@ bool EventLoop::initialize()
     {
         return true;
     }
-    // epoll_create1(EPOLL_CLOEXEC) is better but epoll_create is C++98 compatible
     epollFd = epoll_create(1);
     if (epollFd < 0)
     {

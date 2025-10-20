@@ -25,6 +25,7 @@ SocketManager::~SocketManager()
 bool SocketManager::createServerSocket(const Config::ListenConfig &listenConfig, const Config::ServerConfig *serverConfig)
 {
     std::string listenKey = listenConfig.host + ":" + listenConfig.port;
+    std::cout << "Creating socket for " << listenKey << std::endl;
     std::map<std::string, int>::iterator it = listenAddressToSocket.find(listenKey);
     
     if (it != listenAddressToSocket.end())
