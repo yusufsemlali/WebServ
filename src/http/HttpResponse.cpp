@@ -14,7 +14,6 @@ HttpResponse::HttpResponse() : statusCode(200), statusMessage("OK")
 
 HttpResponse::~HttpResponse()
 {
-    // Cleanup HTTP response
 }
 
 void HttpResponse::setStatus(int code, const std::string &message)

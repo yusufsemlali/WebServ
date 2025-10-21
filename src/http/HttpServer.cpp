@@ -12,7 +12,7 @@ HttpServer::HttpServer(Config& config)
     : config(config),
       socketManager(),
       eventLoop(),
-      requestHandler(config),
+      requestHandler(config, socketManager),
       running(false)
 {
 }

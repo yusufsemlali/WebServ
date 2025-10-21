@@ -10,8 +10,8 @@
 #include "CgiOperation.hpp"
 #include "ClientConnection.hpp"
 
-RequestHandler::RequestHandler(const Config &config)
-    : config(config)
+RequestHandler::RequestHandler(const Config &config, SocketManager &socketManager)
+    : config(config), socketManager(socketManager)
 {
 }
 
@@ -25,7 +25,6 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     std::string method = request.getMethod();
     std::string uri = request.getUri();
 
-    // Keep main request log - this is important
     std::cout << "Processing " << method << " request for " << uri << std::endl;
 
 #ifdef VERBOSE_LOGGING
@@ -41,7 +40,12 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
         return;
     }
 
-    const Config::ServerConfig &serverConfig = findServerConfig(request);
+    int serverFd = -1;
+    if (connection) {
+        serverFd = connection->getServerFd();
+    }
+    
+    const Config::ServerConfig &serverConfig = findServerConfig(request, serverFd);
     
     // Add safety check and debug info
     try 
@@ -792,48 +796,103 @@ bool RequestHandler::isValidRequest(const HttpRequest &request) const
     return true;
 }
 
-const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &request) const
+const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &request, int serverFd) const
 {
     std::string hostHeader = request.getHeader("host");
-    std::string hostname = hostHeader;
-
+    
+#ifdef VERBOSE_LOGGING
     std::cout << "SERVER_FIND: Host header: '" << hostHeader << "'" << std::endl;
+#endif
 
+    if (hostHeader.empty())
+    {
+#ifdef VERBOSE_LOGGING
+        std::cout << "SERVER_FIND: No Host header, using default (first server)" << std::endl;
+#endif
+        const std::vector<const Config::ServerConfig*>* serverConfigs = socketManager.getServerConfigs(serverFd);
+        if (serverConfigs && !serverConfigs->empty())
+        {
+            return *(serverConfigs->at(0));
+        }
+        if (!config.servers.empty())
+        {
+            return config.servers[0];
+        }
+        throw std::runtime_error("No server configurations available");
+    }
+
+    std::string hostname = hostHeader;
     size_t colonPos = hostname.find(':');
     if (colonPos != std::string::npos)
     {
         hostname = hostname.substr(0, colonPos);
     }
-
-    std::cout << "SERVER_FIND: Hostname: '" << hostname << "'" << std::endl;
-
-    const std::vector<Config::ServerConfig> &servers = config.servers;
     
-    // Safety check
-    if (servers.empty())
+    hostname = toLower(hostname);
+
+#ifdef VERBOSE_LOGGING
+    std::cout << "SERVER_FIND: Hostname (normalized): '" << hostname << "'" << std::endl;
+#endif
+
+    const std::vector<const Config::ServerConfig*>* serverConfigs = socketManager.getServerConfigs(serverFd);
+    
+    if (!serverConfigs || serverConfigs->empty())
     {
+#ifdef VERBOSE_LOGGING
+        std::cout << "SERVER_FIND: No server configs for this socket, using default" << std::endl;
+#endif
+        if (!config.servers.empty())
+        {
+            return config.servers[0];
+        }
         throw std::runtime_error("No server configurations available");
     }
     
-    std::cout << "SERVER_FIND: Checking " << servers.size() << " server configurations" << std::endl;
+#ifdef VERBOSE_LOGGING
+    std::cout << "SERVER_FIND: Checking " << serverConfigs->size() << " server configurations for this socket" << std::endl;
+#endif
     
-    for (size_t i = 0; i < servers.size(); ++i)
+    for (size_t i = 0; i < serverConfigs->size(); ++i)
     {
-        const std::vector<std::string> &serverNames = servers[i].serverNames;
+        const Config::ServerConfig* server = serverConfigs->at(i);
+        const std::vector<std::string> &serverNames = server->serverNames;
+        
+#ifdef VERBOSE_LOGGING
         std::cout << "SERVER_FIND: Server " << i << " has " << serverNames.size() << " names" << std::endl;
+#endif
+        
         for (size_t j = 0; j < serverNames.size(); ++j)
         {
+            std::string serverName = toLower(serverNames[j]);
+            
+#ifdef VERBOSE_LOGGING
             std::cout << "SERVER_FIND: Checking server name: '" << serverNames[j] << "'" << std::endl;
-            if (serverNames[j] == hostname)
+#endif
+            
+            if (serverName == hostname)
             {
+#ifdef VERBOSE_LOGGING
                 std::cout << "SERVER_FIND: Found matching server configuration" << std::endl;
-                return servers[i];
+#endif
+                return *server;
             }
         }
     }
 
-    std::cout << "SERVER_FIND: No matching server found, using default (first server)" << std::endl;
-    return servers[0];
+#ifdef VERBOSE_LOGGING
+    std::cout << "SERVER_FIND: No matching server found, using default (first server for this socket)" << std::endl;
+#endif
+    return *(serverConfigs->at(0));
+}
+
+std::string RequestHandler::toLower(const std::string &str) const
+{
+    std::string result = str;
+    for (size_t i = 0; i < result.length(); ++i)
+    {
+        result[i] = std::tolower(static_cast<unsigned char>(result[i]));
+    }
+    return result;
 }
 
 // FIXED: This is the main fix for the segfault

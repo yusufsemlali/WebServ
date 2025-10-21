@@ -58,6 +58,8 @@ void SocketManager::closeAllSockets()
 
 int SocketManager::acceptConnection(int serverFd, struct sockaddr_in &outClientAddr)
 {
+    std::cout << "Accepting connection on server FD: " << serverFd << std::endl;
+    std::cout << "Server : " << serverConfigs[serverFd][0]->listenConfigs[0].host << ":" << serverConfigs[serverFd][0]->listenConfigs[0].port << std::endl;
     socklen_t addrLen = sizeof(outClientAddr);
     int clientFd = accept(serverFd, (struct sockaddr *)&outClientAddr, &addrLen);
     if (clientFd < 0)

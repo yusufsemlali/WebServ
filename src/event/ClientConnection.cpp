@@ -162,6 +162,11 @@ void ClientConnection::setServerFd(int serverFd)
     this->serverFd = serverFd;
 }
 
+int ClientConnection::getServerFd() const
+{
+    return serverFd;
+}
+
 bool ClientConnection::hasCompleteRequest() const
 {
     // Check for complete HTTP request (ends with \r\n\r\n)

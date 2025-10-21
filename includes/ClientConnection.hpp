@@ -47,6 +47,7 @@ class ClientConnection
     void close();
     bool isConnected() const;
     void setServerFd(int serverFd);
+    int getServerFd() const;
 
     // Request/Response handling
     bool hasCompleteRequest() const;

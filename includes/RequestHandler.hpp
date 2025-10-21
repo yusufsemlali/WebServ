@@ -2,11 +2,11 @@
 #define REQUEST_HANDLER_HPP
 
 #include <string>
-#include <map>
 #include <ctime>
 #include "Config.hpp"
 #include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
+#include "SocketManager.hpp"
 
 // Forward declaration to avoid circular dependency
 class ClientConnection;
@@ -14,7 +14,7 @@ class ClientConnection;
 class RequestHandler
 {
 public:
-    RequestHandler(const Config &config);
+    RequestHandler(const Config &config, SocketManager &socketManager);
     ~RequestHandler();
 
     // Main request handling - now takes ClientConnection for async operations
@@ -22,6 +22,7 @@ public:
 
 private:
     const Config &config;
+    SocketManager &socketManager;
 
     // Main request processing methods
     void processGetRequest(const HttpRequest &request, HttpResponse &response, 
@@ -49,8 +50,11 @@ private:
     void handleFormData(const HttpRequest &request, HttpResponse &response);
 
     // Configuration resolution methods
-    const Config::ServerConfig &findServerConfig(const HttpRequest &request) const;
+    const Config::ServerConfig &findServerConfig(const HttpRequest &request, int serverFd) const;
     const Config::LocationConfig &findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const;
+    
+    // Helper methods
+    std::string toLower(const std::string &str) const;
 
     // Path resolution and file operations
     std::string resolveFilePath(const std::string &uri, const Config::LocationConfig &location, 
