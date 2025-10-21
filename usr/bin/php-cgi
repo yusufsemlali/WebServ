@@ -1,17 +1,36 @@
 #!/bin/bash
-# Fake PHP-CGI for testing purposes
-# This script simulates php-cgi behavior
 
+SCRIPT_FILE="$1"
+
+# Check if script file was provided and exists
+if [ -z "$SCRIPT_FILE" ] || [ ! -f "$SCRIPT_FILE" ]; then
+    echo "Content-Type: text/plain"
+    echo "Status: 500 Internal Server Error"
+    echo ""
+    echo "Error: Script file not found or not provided"
+    exit 1
+fi
+
+# Output CGI headers
 echo "Content-Type: text/html"
 echo "Status: 200 OK"
 echo ""  # Empty line separates headers from body
+
+# Output HTML with script information
 echo "<!DOCTYPE html>"
 echo "<html>"
-echo "<head><title>Simulated PHP CGI</title></head>"
+echo "<head><title>Fake PHP-CGI Execution</title></head>"
 echo "<body>"
-echo "<h1>Hello from Simulated PHP CGI!</h1>"
-echo "<p>This simulates PHP-CGI execution.</p>"
-echo "<p>Script: $1</p>"
-echo "<p>Date: $(date)</p>"
+echo "<h1>Fake PHP-CGI Execution Result</h1>"
+echo "<p><strong>Script executed:</strong> $SCRIPT_FILE</p>"
+echo "<p><strong>Execution time:</strong> $(date)</p>"
+echo "<hr>"
+echo "<h2>Script Content:</h2>"
+echo "<pre>"
+# Display the actual PHP file content
+cat "$SCRIPT_FILE" | sed 's/</\&lt;/g; s/>/\&gt;/g'
+echo "</pre>"
+echo "<hr>"
+echo "<p><em>Note: This is a simulated PHP-CGI. Install real PHP to execute PHP code.</em></p>"
 echo "</body>"
 echo "</html>"
