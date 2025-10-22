@@ -1,5 +1,0 @@
-Hello from WebServ!
-This is a test file for upload testing.
-Date: September 10, 2025
-Content: Sample text for CGI upload verification
-Status: Ready for testing! 🚀

@@ -23,4 +23,4 @@ private:
 
 
 
-#endif // CGIHANDLER_HPP
+#endif
