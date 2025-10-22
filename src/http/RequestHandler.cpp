@@ -436,7 +436,7 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
     {
         if (server.errorPages[i].errorCode == errorCode)
         {
-            std::string errorPagePath = server.root + "/" + server.errorPages[i].filePath;
+            std::string errorPagePath = server.errorPages[i].filePath;
             std::cout << "ERROR: Checking custom error page: " << errorPagePath << std::endl;
             if (fileExists(errorPagePath))
             {
