@@ -136,8 +136,6 @@ void CgiHandler::ExecuteCgi (const std::string& scriptName, std::string pathCgi,
             std::ostringstream oss;
             oss << request.getBody().length();
             contentLength = oss.str();
-            std::cout << "CGI: POST detected, using actual body length: " << contentLength << std::endl;
-            std::cout << "CGI: POST body size: " << request.getBody().length() << std::endl;
         }
         
         // Use script path as-is for SCRIPT_FILENAME (42 compliant)

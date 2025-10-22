@@ -227,7 +227,7 @@ test_directory_listing() {
     print_header "TEST 7: Directory Listing (Autoindex)"
     
     print_test "Access directory with autoindex on"
-    response=$(curl -s -w "\n%{http_code}" "$BASE_URL_1/download/")
+    response=$(curl -s -w "\n%{http_code}" "$BASE_URL_1/files/")
     status=$(echo "$response" | tail -n1)
     body=$(echo "$response" | head -n -1)
     

@@ -27,14 +27,9 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
 
     std::cout << "Processing " << method << " request for " << uri << std::endl;
 
-#ifdef VERBOSE_LOGGING
-    std::cout << "======================================" << std::endl;
-#endif
-
     if (!isValidRequest(request))
     {
-        setErrorResponse(400, response, "Bad Request");
-        std::cout << "\n--- VALIDATION ERROR RESPONSE ---" << std::endl;
+        generateErrorPage(400, response, connection->getServerFd());
         return;
     }
 
@@ -45,22 +40,18 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     
     const Config::ServerConfig &serverConfig = findServerConfig(request, serverFd);
     
-    // Add safety check and debug info
     try 
     {
         const Config::LocationConfig &locationConfig = findLocationConfig(serverConfig, uri);
         std::cout << "Location found: " << locationConfig.path << std::endl;
         
-        // 2. Check if method is allowed
         if (!isMethodAllowed(method, locationConfig))
         {
             serveErrorPage(405, response, serverConfig);
             std::cout << "\n--- METHOD NOT ALLOWED RESPONSE ---" << std::endl;
-            // response.printResponse();
             return;
         }
 
-        // 3. Check body size limit for POST requests
         if (method == "POST")
         {
             size_t contentLength = request.getContentLength();
@@ -106,36 +97,11 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
             serveErrorPage(501, response, serverConfig);
         }
         
-#ifdef VERBOSE_LOGGING
-        // PRINT THE RESPONSE AFTER PROCESSING
-        std::cout << "\n--- FINAL RESPONSE GENERATED ---" << std::endl;
-        // response.printResponse();
-        
-        // Also print raw HTTP response for debugging
-        std::cout << "\n--- RAW HTTP RESPONSE ---" << std::endl;
-        std::string rawResponse = response.toString();
-        std::cout << "Total size: " << rawResponse.length() << " bytes" << std::endl;
-        std::cout << "Raw response preview (first 300 chars):" << std::endl;
-        std::string preview = rawResponse.substr(0, 300);
-        for (size_t i = 0; i < preview.length(); ++i)
-        {
-            if (preview[i] == '\r') std::cout << "\\r";
-            else if (preview[i] == '\n') std::cout << "\\n\n";
-            else std::cout << preview[i];
-        }
-        if (rawResponse.length() > 300) std::cout << "\n... (truncated)";
-        std::cout << "\n=========================\n" << std::endl;
-#endif
     }
     catch (const std::exception &e)
     {
         std::cerr << "Exception in handleRequest: " << e.what() << std::endl;
-        setErrorResponse(500, response, "Internal Server Error");
-        
-        // PRINT ERROR RESPONSE
-        std::cout << "\n--- EXCEPTION ERROR RESPONSE ---" << std::endl;
-        // response.printResponse();
-        std::cout << "\n";
+        generateErrorPage(500, response, connection->getServerFd());
         return;
     }
 }
@@ -166,21 +132,15 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
     std::string uri = request.getUri();
     std::string filePath = resolveFilePath(uri, location, server);
     
-    std::cout << "GET: Resolved file path: " << filePath << std::endl;
 
-    // Check if file/directory exists
     if (!fileExists(filePath))
     {
-        std::cout << "GET: File not found: " << filePath << std::endl;
         serveErrorPage(404, response, server);
         return;
     }
 
-    // Check if it's a directory
     if (isDirectory(filePath))
     {
-        std::cout << "GET: Path is directory: " << filePath << std::endl;
-        // Try to serve index file
         std::string indexFile = location.index.empty() ? server.index : location.index;
         if (indexFile.empty())
             indexFile = "index.html";
@@ -190,44 +150,33 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
             indexPath += "/";
         indexPath += indexFile;
 
-        std::cout << "GET: Looking for index file: " << indexPath << std::endl;
         if (fileExists(indexPath) && !isDirectory(indexPath))
         {
-            std::cout << "GET: Serving index file: " << indexPath << std::endl;
             serveStaticFile(indexPath, response);
         }
         else if (location.autoindex || server.autoindex)
         {
-            std::cout << "GET: Generating directory listing for: " << filePath << std::endl;
             serveDirectoryListing(filePath, response);
         }
         else
         {
-            std::cout << "GET: Directory access forbidden (no index, no autoindex)" << std::endl;
             serveErrorPage(403, response, server);
         }
     }
     else
     {
-        std::cout << "GET: Path is file: " << filePath << std::endl;
         
-        // Check if CGI is configured for this location first
         if (!location.cgiPass.empty())
         {
-            std::cout << "GET: CGI configured: " << location.cgiPass << std::endl;
             executeCgi(request, response, server, location, connection);
             return;
-        }
-        
-        // Serve static file
+        }     
         if (hasPermission(filePath))
         {
-            std::cout << "GET: File has read permission" << std::endl;
             serveStaticFile(filePath, response);
         }
         else
         {
-            std::cout << "GET: File access forbidden (no read permission)" << std::endl;
             serveErrorPage(403, response, server);
         }
     }
@@ -239,48 +188,34 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
 {
     std::string uri = request.getUri();
     
-    std::cout << "POST: Processing URI: " << uri << std::endl;
-    std::cout << "POST: Content-Type: " << request.getContentType() << std::endl;
-    std::cout << "POST: Content-Length: " << request.getContentLength() << std::endl;
-    
-    // Check if CGI is configured for this location
     if (!location.cgiPass.empty())
     {
-        std::cout << "POST: CGI configured: " << location.cgiPass << std::endl;
         executeCgi(request, response, server, location, connection);
         return;
     }
 
-    // Handle file uploads or form data
     std::string contentType = request.getContentType();
     
     if (contentType.find("multipart/form-data") != std::string::npos)
     {
-        std::cout << "POST: Handling file upload" << std::endl;
         handleFileUpload(request, response, server, location);
     }
     else if (contentType == "application/x-www-form-urlencoded")
     {
-        std::cout << "POST: Handling form data" << std::endl;
         handleFormData(request, response);
     }
     else
     {
-        std::cout << "POST: Creating/updating resource" << std::endl;
-        // Simple POST - create/update resource
         std::string filePath = resolveFilePath(uri, location, server);
         
-        std::cout << "POST: Target file path: " << filePath << std::endl;
         if (createFile(filePath, request.getBody()))
         {
-            std::cout << "POST: File created successfully" << std::endl;
             response.setStatus(201, "Created");
             response.setBody("Resource created successfully");
             response.setHeader("Content-Type", "text/plain");
         }
         else
         {
-            std::cout << "POST: Failed to create file" << std::endl;
             serveErrorPage(500, response, server);
         }
     }
@@ -293,83 +228,60 @@ void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpRespon
     std::string uri = request.getUri();
     std::string filePath = resolveFilePath(uri, location, server);
     
-    std::cout << "DELETE: Attempting to delete: " << filePath << std::endl;
 
-    // Check if file exists
     if (!fileExists(filePath))
     {
-        std::cout << "DELETE: File not found: " << filePath << std::endl;
         serveErrorPage(404, response, server);
         return;
     }
 
-    // Check permissions
     if (!hasPermission(filePath))
     {
-        std::cout << "DELETE: No permission to access: " << filePath << std::endl;
         serveErrorPage(403, response, server);
         return;
     }
-
-    // Don't allow deleting directories for safety
     if (isDirectory(filePath))
     {
-        std::cout << "DELETE: Cannot delete directory: " << filePath << std::endl;
         serveErrorPage(403, response, server);
         return;
     }
 
-    // Attempt to delete the file
-    std::cout << "DELETE: Attempting to remove file: " << filePath << std::endl;
     if (std::remove(filePath.c_str()) == 0)
     {
-        std::cout << "DELETE: File deleted successfully: " << filePath << std::endl;
         response.setStatus(204, "No Content");
         response.setBody("");
     }
     else
     {
-        std::cout << "DELETE: Failed to delete file: " << filePath << std::endl;
         serveErrorPage(500, response, server);
     }
 }
 
 void RequestHandler::serveStaticFile(const std::string &filePath, HttpResponse &response)
 {
-    std::cout << "STATIC: Opening file: " << filePath << std::endl;
     std::ifstream file(filePath.c_str(), std::ios::binary);
     if (!file.is_open())
     {
-        std::cout << "STATIC: Failed to open file: " << filePath << std::endl;
         response.setStatus(404, "Not Found");
         return;
     }
 
-    // Read file content
     std::ostringstream oss;
     oss << file.rdbuf();
     file.close();
 
     std::string mimeType = getMimeType(filePath);
     
-    // Set response
     response.setStatus(200, "OK");
     response.setBody(oss.str());
     response.setHeader("Content-Type", mimeType);
-    
-    std::cout << "STATIC: File served successfully:" << std::endl;
-    std::cout << "  Path: " << filePath << std::endl;
-    std::cout << "  Size: " << oss.str().length() << " bytes" << std::endl;
-    std::cout << "  MIME Type: " << mimeType << std::endl;
 }
 
 void RequestHandler::serveDirectoryListing(const std::string &dirPath, HttpResponse &response)
 {
-    std::cout << "DIRECTORY: Generating listing for: " << dirPath << std::endl;
     DIR* dir = opendir(dirPath.c_str());
     if (!dir)
     {
-        std::cout << "DIRECTORY: Failed to open directory: " << dirPath << std::endl;
         response.setStatus(403, "Forbidden");
         return;
     }
@@ -439,9 +351,6 @@ void RequestHandler::serveDirectoryListing(const std::string &dirPath, HttpRespo
     response.setStatus(200, "OK");
     response.setBody(html.str());
     response.setHeader("Content-Type", "text/html");
-    
-    std::cout << "DIRECTORY: Generated listing with " << fileCount << " entries" << std::endl;
-    std::cout << "DIRECTORY: HTML size: " << html.str().length() << " bytes" << std::endl;
 }
 
 void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const Config::ServerConfig &server)
@@ -451,10 +360,8 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
         if (server.errorPages[i].errorCode == errorCode)
         {
             std::string errorPagePath = server.errorPages[i].filePath;
-            std::cout << "ERROR: Checking custom error page: " << errorPagePath << std::endl;
             if (fileExists(errorPagePath))
             {
-                std::cout << "ERROR: Using custom error page: " << errorPagePath << std::endl;
                 serveStaticFile(errorPagePath, response);
                 response.setStatus(errorCode, HttpResponse::getDefaultStatusMessage(errorCode));
                 return;
@@ -601,13 +508,11 @@ std::string RequestHandler::resolveFilePath(const std::string &uri, const Config
         path.replace(pos, 2, "/");
     }
     
-    std::cout << "RESOLVE: Final path: " << path << std::endl;
     return path;
 }
 
 void RequestHandler::handleRedirect(HttpResponse &response, const Config::LocationConfig &location)
 {
-    std::cout << "REDIRECT: Redirecting to: " << location.returnUrl << std::endl;
     response.setStatus(302, "Found");
     response.setHeader("Location", location.returnUrl);
     response.setBody("");
@@ -617,7 +522,6 @@ bool RequestHandler::fileExists(const std::string &path) const
 {
     struct stat buffer;
     bool exists = (stat(path.c_str(), &buffer) == 0);
-    std::cout << "FILE_CHECK: " << path << " exists: " << (exists ? "YES" : "NO") << std::endl;
     return exists;
 }
 
@@ -627,33 +531,26 @@ bool RequestHandler::isDirectory(const std::string &path) const
     if (stat(path.c_str(), &buffer) != 0)
         return false;
     bool isDir = S_ISDIR(buffer.st_mode);
-    std::cout << "DIR_CHECK: " << path << " is directory: " << (isDir ? "YES" : "NO") << std::endl;
     return isDir;
 }
 
 bool RequestHandler::hasPermission(const std::string &path) const
 {
     bool hasRead = access(path.c_str(), R_OK) == 0;
-    std::cout << "PERM_CHECK: " << path << " readable: " << (hasRead ? "YES" : "NO") << std::endl;
     return hasRead;
 }
 
 bool RequestHandler::createFile(const std::string &path, const std::string &content) const
 {
-    std::cout << "CREATE_FILE: Creating file: " << path << std::endl;
-    std::cout << "CREATE_FILE: Content size: " << content.length() << " bytes" << std::endl;
-    
     std::ofstream file(path.c_str());
     if (!file.is_open())
     {
-        std::cout << "CREATE_FILE: Failed to open file for writing" << std::endl;
         return false;
     }
     
     file << content;
     file.close();
     
-    std::cout << "CREATE_FILE: File created successfully" << std::endl;
     return true;
 }
 
@@ -675,7 +572,6 @@ std::string RequestHandler::getMimeType(const std::string &filePath) const
     
     std::string extension = filePath.substr(dotPos + 1);
     
-    // Convert to lowercase
     for (size_t i = 0; i < extension.length(); ++i)
     {
         if (extension[i] >= 'A' && extension[i] <= 'Z')
@@ -704,34 +600,19 @@ std::string RequestHandler::getMimeType(const std::string &filePath) const
     else
         mimeType = "application/octet-stream";
     
-    std::cout << "MIME: " << filePath << " -> " << mimeType << std::endl;
     return mimeType;
 }
 
-// FIXED: Helper methods for validation and configuration
 bool RequestHandler::isMethodAllowed(const std::string &method, const Config::LocationConfig &location) const
 {
-    // Add debug print to trace execution
-    std::cout << "METHOD_CHECK: Checking method: '" << method << "' for location: '" << location.path << "'" << std::endl;
-    std::cout << "METHOD_CHECK: Location has " << location.allowedMethods.size() << " configured methods" << std::endl;
     
     if (location.allowedMethods.empty())
     {
-        std::cout << "METHOD_CHECK: No specific methods configured, using defaults" << std::endl;
         bool allowed = (method == "GET" || method == "POST" || method == "DELETE" || method == "HEAD");
-        std::cout << "METHOD_CHECK: Default check result: " << (allowed ? "ALLOWED" : "NOT ALLOWED") << std::endl;
         return allowed;
     }
     
-    std::cout << "METHOD_CHECK: Checking against configured methods:" << std::endl;
-    for (std::set<std::string>::const_iterator it = location.allowedMethods.begin();
-         it != location.allowedMethods.end(); ++it)
-    {
-        std::cout << "  - " << *it << std::endl;
-    }
-    
     bool allowed = location.allowedMethods.find(method) != location.allowedMethods.end();
-    std::cout << "METHOD_CHECK: Method " << method << " is " << (allowed ? "ALLOWED" : "NOT ALLOWED") << std::endl;
     return allowed;
 }
 
@@ -772,9 +653,6 @@ bool RequestHandler::isValidRequest(const HttpRequest &request) const
         }
     }
 
-#ifdef VERBOSE_LOGGING
-    std::cout << "VALIDATION: Request is valid" << std::endl;
-#endif
     return true;
 }
 
@@ -782,15 +660,8 @@ const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &
 {
     std::string hostHeader = request.getHeader("host");
     
-#ifdef VERBOSE_LOGGING
-    std::cout << "SERVER_FIND: Host header: '" << hostHeader << "'" << std::endl;
-#endif
-
     if (hostHeader.empty())
     {
-#ifdef VERBOSE_LOGGING
-        std::cout << "SERVER_FIND: No Host header, using default (first server)" << std::endl;
-#endif
         const std::vector<const Config::ServerConfig*>* serverConfigs = socketManager.getServerConfigs(serverFd);
         if (serverConfigs && !serverConfigs->empty())
         {
@@ -812,17 +683,10 @@ const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &
     
     hostname = toLower(hostname);
 
-#ifdef VERBOSE_LOGGING
-    std::cout << "SERVER_FIND: Hostname (normalized): '" << hostname << "'" << std::endl;
-#endif
-
     const std::vector<const Config::ServerConfig*>* serverConfigs = socketManager.getServerConfigs(serverFd);
     
     if (!serverConfigs || serverConfigs->empty())
     {
-#ifdef VERBOSE_LOGGING
-        std::cout << "SERVER_FIND: No server configs for this socket, using default" << std::endl;
-#endif
         if (!config.servers.empty())
         {
             return config.servers[0];
@@ -830,40 +694,21 @@ const Config::ServerConfig &RequestHandler::findServerConfig(const HttpRequest &
         throw std::runtime_error("No server configurations available");
     }
     
-#ifdef VERBOSE_LOGGING
-    std::cout << "SERVER_FIND: Checking " << serverConfigs->size() << " server configurations for this socket" << std::endl;
-#endif
-    
     for (size_t i = 0; i < serverConfigs->size(); ++i)
     {
         const Config::ServerConfig* server = serverConfigs->at(i);
         const std::vector<std::string> &serverNames = server->serverNames;
         
-#ifdef VERBOSE_LOGGING
-        std::cout << "SERVER_FIND: Server " << i << " has " << serverNames.size() << " names" << std::endl;
-#endif
-        
         for (size_t j = 0; j < serverNames.size(); ++j)
         {
             std::string serverName = toLower(serverNames[j]);
             
-#ifdef VERBOSE_LOGGING
-            std::cout << "SERVER_FIND: Checking server name: '" << serverNames[j] << "'" << std::endl;
-#endif
-            
             if (serverName == hostname)
             {
-#ifdef VERBOSE_LOGGING
-                std::cout << "SERVER_FIND: Found matching server configuration" << std::endl;
-#endif
                 return *server;
             }
         }
     }
-
-#ifdef VERBOSE_LOGGING
-    std::cout << "SERVER_FIND: No matching server found, using default (first server for this socket)" << std::endl;
-#endif
     return *(serverConfigs->at(0));
 }
 
@@ -877,29 +722,20 @@ std::string RequestHandler::toLower(const std::string &str) const
     return result;
 }
 
-// FIXED: This is the main fix for the segfault
 const Config::LocationConfig &RequestHandler::findLocationConfig(const Config::ServerConfig &server, const std::string &uri) const
 {
     const std::vector<Config::LocationConfig> &locations = server.locations;
     
-    std::cout << "LOCATION_FIND: Looking for location matching URI: " << uri << std::endl;
-    std::cout << "LOCATION_FIND: Server has " << locations.size() << " locations" << std::endl;
-    
-    // CRITICAL FIX: Handle empty locations vector
     if (locations.empty())
     {
-        std::cout << "LOCATION_FIND: Warning - Server has no location blocks, creating default location" << std::endl;
         
-        // Create a static default location that persists beyond function scope
         static Config::LocationConfig defaultLocation;
         defaultLocation.path = "/";
         defaultLocation.root = "./www";
         defaultLocation.autoindex = false;
         defaultLocation.clientMaxBodySize = 0;
-        // Don't set any specific methods - let it use defaults
         defaultLocation.allowedMethods.clear();
         
-        std::cout << "LOCATION_FIND: Using default location: " << defaultLocation.path << std::endl;
         return defaultLocation;
     }
     
@@ -909,53 +745,41 @@ const Config::LocationConfig &RequestHandler::findLocationConfig(const Config::S
     for (size_t i = 0; i < locations.size(); ++i)
     {
         const std::string &locationPath = locations[i].path;
-        std::cout << "LOCATION_FIND: Checking location[" << i << "]: " << locationPath << std::endl;
         
         bool matches = false;
         
-        // Check for wildcard patterns (e.g., *.py, *.php)
         if (locationPath.length() > 0 && locationPath[0] == '*')
         {
-            // Extract the extension from the pattern (e.g., ".py" from "*.py")
-            std::string extension = locationPath.substr(1);
-            
-            // Check if URI ends with this extension
+            std::string extension = locationPath.substr(1); 
             if (uri.length() >= extension.length() && 
                 uri.substr(uri.length() - extension.length()) == extension)
             {
                 matches = true;
-                std::cout << "LOCATION_FIND: Wildcard match found for extension: " << extension << std::endl;
             }
         }
-        // Check for exact prefix match (e.g., "/download", "/bin")
+        
         else if (uri.find(locationPath) == 0)
         {
             matches = true;
-            std::cout << "LOCATION_FIND: Prefix match found" << std::endl;
         }
         
         if (matches && locationPath.length() > bestMatchLength)
         {
             bestMatch = &locations[i];
             bestMatchLength = locationPath.length();
-            std::cout << "LOCATION_FIND: New best match (length: " << bestMatchLength << ")" << std::endl;
         }
     }
 
     if (bestMatch)
     {
-        std::cout << "LOCATION_FIND: Found best location match: " << bestMatch->path << std::endl;
         return *bestMatch;
     }
 
-    std::cout << "LOCATION_FIND: No specific match found, using first location: " << locations[0].path << std::endl;
     return locations[0];
 }
 
 void RequestHandler::setErrorResponse(int statusCode, HttpResponse &response, const std::string &message)
 {
-    std::cout << "ERROR_RESPONSE: Setting error response: " << statusCode << " " << message << std::endl;
-    
     response.setStatus(statusCode, message);
     std::ostringstream html;
     html << "<!DOCTYPE html>\n";
@@ -963,6 +787,4 @@ void RequestHandler::setErrorResponse(int statusCode, HttpResponse &response, co
     html << "<body><h1>" << statusCode << " " << message << "</h1></body></html>\n";
     response.setBody(html.str());
     response.setHeader("Content-Type", "text/html");
-    
-    std::cout << "ERROR_RESPONSE: Error response generated (" << html.str().length() << " bytes)" << std::endl;
 }

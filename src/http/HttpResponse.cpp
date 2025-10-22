@@ -93,28 +93,17 @@ std::string HttpResponse::toString() const
     
     std::string result = response.str();
     
-#ifdef VERBOSE_LOGGING
-    std::cout << "=== GENERATED HTTP RESPONSE ===" << std::endl;
-    std::cout << "Status: " << statusCode << " " << statusMessage << std::endl;
-    std::cout << "Headers:" << std::endl;
-#endif
-
     for (std::map<std::string, std::string>::const_iterator it = headers.begin();
          it != headers.end(); ++it)
     {
         std::cout << "  " << it->first << ": " << it->second << std::endl;
     }
-    std::cout << "Body Length: " << body.length() << " bytes" << std::endl;
     if (!body.empty())
     {
-        std::cout << "Body Preview: " << body.substr(0, 100);
         if (body.length() > 100) std::cout << "...";
         std::cout << std::endl;
     }
-#ifdef VERBOSE_LOGGING
-    std::cout << "=== FINAL RESPONSE GENERATED ===" << std::endl;
-#endif
-    
+
     return result;
 }
 
