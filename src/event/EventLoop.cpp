@@ -24,6 +24,7 @@ bool EventLoop::initialize()
     {
         return true;
     }
+
     epollFd = epoll_create(1);
     if (epollFd < 0)
     {
@@ -56,7 +57,11 @@ bool EventLoop::remove(int fd)
 {
     if (epoll_ctl(epollFd, EPOLL_CTL_DEL, fd, NULL) < 0)
     {
-        std::cerr << "Failed to remove file descriptor " << fd << " from epoll: " << strerror(errno) << std::endl;
+        // EBADF means FD is already closed or invalid - this is acceptable during cleanup
+        if (errno != EBADF)
+        {
+            std::cerr << "Failed to remove file descriptor " << fd << " from epoll: " << strerror(errno) << std::endl;
+        }
         return false;
     }
     return true;

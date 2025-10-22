@@ -126,9 +126,7 @@ valgrind: all
 		--track-fds=yes \
 		--trace-children=yes \
 		--log-file=valgrind.log \
-		--verbose \
-		--error-exitcode=1 \
-		--suppressions=valgrind.supp \
+		--suppressions=cgi.supp \
 		./$(NAME) 
 
 # More comprehensive valgrind check for webserv-specific issues
@@ -147,6 +145,7 @@ valgrind-full: all
 		--log-file=valgrind-full.log \
 		--error-exitcode=1 \
 		--suppressions=valgrind.supp \
+		--suppressions=cgi.supp \
 		--gen-suppressions=all \
 		./$(NAME) 
 

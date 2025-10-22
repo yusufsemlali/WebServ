@@ -17,8 +17,9 @@ public:
     RequestHandler(const Config &config, SocketManager &socketManager);
     ~RequestHandler();
 
-    // Main request handling - now takes ClientConnection for async operations
     void handleRequest(const HttpRequest &request, HttpResponse &response, ClientConnection* connection = NULL);
+    
+    void generateErrorPage(int errorCode, HttpResponse &response, int serverFd);
 
 private:
     const Config &config;

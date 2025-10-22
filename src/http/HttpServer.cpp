@@ -190,7 +190,6 @@ void HttpServer::handleClientRead(int clientFd)
         return;
     }
 
-    // Check if we have an async operation pending
     if (conn->hasPendingOperation())
     {
         AsyncOperation* op = conn->getPendingOperation();
@@ -198,21 +197,17 @@ void HttpServer::handleClientRead(int clientFd)
         
         std::cout << "Async operation started, monitoring CGI FD: " << cgiFd << std::endl;
         
-        // Register CGI FD with event loop
         if (eventLoop.add(cgiFd, EPOLLIN))
         {
-            // Map CGI FD to client connection
             cgiConnections[cgiFd] = conn;
             std::cout << "CGI FD " << cgiFd << " registered for monitoring" << std::endl;
         }
         else
         {
             std::cerr << "Failed to add CGI FD to event loop" << std::endl;
-            // Cleanup the operation
             conn->completePendingOperation();
         }
     }
-    // FIXED: Check if we have a response ready to send
     else if (conn->isReadyToWrite())
     {
         std::cout << "Response ready, switching to write mode" << std::endl;

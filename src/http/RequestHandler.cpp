@@ -31,12 +31,10 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     std::cout << "======================================" << std::endl;
 #endif
 
-    // 1. Validate request
     if (!isValidRequest(request))
     {
         setErrorResponse(400, response, "Bad Request");
         std::cout << "\n--- VALIDATION ERROR RESPONSE ---" << std::endl;
-        // response.printResponse();
         return;
     }
 
@@ -139,6 +137,25 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
         // response.printResponse();
         std::cout << "\n";
         return;
+    }
+}
+
+void RequestHandler::generateErrorPage(int errorCode, HttpResponse &response, int serverFd)
+{
+    const std::vector<const Config::ServerConfig*>* serverConfigs = socketManager.getServerConfigs(serverFd);
+    
+    if (serverConfigs && !serverConfigs->empty())
+    {
+        const Config::ServerConfig& server = *(serverConfigs->at(0));
+        serveErrorPage(errorCode, response, server);
+    }
+    else if (!config.servers.empty())
+    {
+        serveErrorPage(errorCode, response, config.servers[0]);
+    }
+    else
+    {
+        setErrorResponse(errorCode, response, HttpResponse::getDefaultStatusMessage(errorCode));
     }
 }
 
@@ -429,9 +446,6 @@ void RequestHandler::serveDirectoryListing(const std::string &dirPath, HttpRespo
 
 void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const Config::ServerConfig &server)
 {
-    std::cout << "ERROR: Serving error page: " << errorCode << std::endl;
-    
-    // Check for custom error pages
     for (size_t i = 0; i < server.errorPages.size(); ++i)
     {
         if (server.errorPages[i].errorCode == errorCode)
@@ -448,9 +462,6 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
         }
     }
 
-    std::cout << "ERROR: Generating default error page for " << errorCode << std::endl;
-    
-    // Generate default error page
     std::ostringstream html;
     html << "<!DOCTYPE html>\n";
     html << "<html>\n<head>\n";
@@ -466,39 +477,28 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
     response.setBody(html.str());
     response.setHeader("Content-Type", "text/html");
     
-    std::cout << "ERROR: Default error page generated (" << html.str().length() << " bytes)" << std::endl;
 }
 
 void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &response, 
                                const Config::ServerConfig &server, const Config::LocationConfig &location,
                                ClientConnection* connection)
 {
-    std::cout << "CGI: Executing script with interpreter: " << location.cgiPass << std::endl;
-    
-    // Get the actual requested file path
     std::string uri = request.getUri();
     std::string scriptPath = resolveFilePath(uri, location, server);
     std::string interpreterPath = location.cgiPass;
     
-    // Convert relative interpreter paths to absolute
     if (interpreterPath.substr(0, 2) == "./") {
         std::string relativePath = interpreterPath.substr(2);
         
-        // Check if it's a system interpreter (starts with usr/bin, bin/, etc.)
         if (relativePath.substr(0, 7) == "usr/bin" || relativePath.substr(0, 4) == "bin/") {
-            // First try as absolute path for system interpreters
             std::string absolutePath = "/" + relativePath;
             if (access(absolutePath.c_str(), X_OK) == 0) {
                 interpreterPath = absolutePath;
-                std::cout << "CGI: Using system interpreter: " << interpreterPath << std::endl;
             }
-            // If system path fails, try as relative path for local scripts
             else if (access(relativePath.c_str(), X_OK) == 0) {
                 interpreterPath = relativePath;
-                std::cout << "CGI: Using local interpreter: " << interpreterPath << std::endl;
             }
             else {
-                std::cout << "CGI: Interpreter not found at system or local path: " << relativePath << std::endl;
                 response.setStatus(500, "Internal Server Error");
                 response.setBody("CGI interpreter not found");
                 response.setHeader("Content-Type", "text/plain");
@@ -506,20 +506,15 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
             }
         }
         else {
-            // For other paths, keep as relative
             interpreterPath = relativePath;
         }
     }
     
-    // Check if we have a connection for async operation
     if (connection != NULL) {
-        std::cout << "CGI: Starting async CGI operation" << std::endl;
         
-        // Create async CGI operation
         std::string documentRoot = location.root.empty() ? server.root : location.root;
         CgiOperation* cgiOp = new CgiOperation(scriptPath, interpreterPath, request, documentRoot);
         
-        // Check if CGI started successfully
         if (cgiOp->hasError()) {
             std::cerr << "CGI: Failed to start CGI operation: " << cgiOp->getError() << std::endl;
             response.setStatus(500, "Internal Server Error");
@@ -742,39 +737,28 @@ bool RequestHandler::isMethodAllowed(const std::string &method, const Config::Lo
 
 bool RequestHandler::isValidRequest(const HttpRequest &request) const
 {
-#ifdef VERBOSE_LOGGING
-    std::cout << "VALIDATION: Checking request validity..." << std::endl;
-#endif
-    
+
     if (!request.isComplete())
     {
-#ifdef VERBOSE_LOGGING
         std::cerr << "VALIDATION: Request parsing incomplete" << std::endl;
-#endif
         return false;
     }
 
     if (!request.isValidMethod())
     {
-#ifdef VERBOSE_LOGGING
         std::cerr << "VALIDATION: Invalid HTTP method: " << request.getMethod() << std::endl;
-#endif
         return false;
     }
 
     if (!request.isValidVersion())
     {
-#ifdef VERBOSE_LOGGING
         std::cerr << "VALIDATION: Invalid HTTP version: " << request.getVersion() << std::endl;
-#endif
         return false;
     }
 
     if (!request.isValidUri())
     {
-#ifdef VERBOSE_LOGGING
         std::cerr << "VALIDATION: Invalid URI: " << request.getUri() << std::endl;
-#endif
         return false;
     }
 
@@ -783,9 +767,7 @@ bool RequestHandler::isValidRequest(const HttpRequest &request) const
         std::string contentLength = request.getHeader("content-length");
         if (contentLength.empty())
         {
-#ifdef VERBOSE_LOGGING
             std::cerr << "VALIDATION: POST request missing Content-Length header" << std::endl;
-#endif
             return false;
         }
     }

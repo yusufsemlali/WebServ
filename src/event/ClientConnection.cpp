@@ -8,11 +8,9 @@
 
 #include <cctype>
 #include <cstdlib>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 
-#include "ClientConnection.hpp"
 #include "RequestHandler.hpp"
 #include "utiles.hpp"
 
@@ -32,7 +30,6 @@ ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clien
 
 ClientConnection::~ClientConnection()
 {
-    // Clean up any pending async operation
     if (context.pendingOperation) {
         context.pendingOperation->cleanup();
         delete context.pendingOperation;
@@ -56,12 +53,10 @@ bool ClientConnection::readData()
         if (bytesReadNow < 0)
         {
             std::cerr << "Error reading from socket: " << strerror(errno) << std::endl;
-            close();
             return false;
         }
         // bytesReadNow == 0 means client closed connection
         std::cout << "Client closed connection" << std::endl;
-        close();
         return false;
     }
 
@@ -92,25 +87,14 @@ bool ClientConnection::writeData()
         return false;
     }
 
-#ifdef VERBOSE_LOGGING
-    // FIXED: Added debug info for write operations
-    std::cout << "Writing data to socket " << socketFd << std::endl;
-    std::cout << "Write buffer size: " << writeBuffer.size() << " bytes" << std::endl;
-    std::cout << "Write offset: " << writeOffset << std::endl;
-#endif
-
     ssize_t bytesWrittenNow = send(socketFd, writeBuffer.data() + writeOffset, writeBuffer.size() - writeOffset, 0);
     if (bytesWrittenNow < 0)
     {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
         {
-#ifdef VERBOSE_LOGGING
-            std::cout << "Socket would block, will retry later" << std::endl;
-#endif
-            return true; // Not an error, just need to try again
+            return true;
         }
         std::cerr << "Error writing to socket: " << strerror(errno) << std::endl;
-        close();
         return false;
     }
 
@@ -118,24 +102,15 @@ bool ClientConnection::writeData()
     writeOffset += bytesWrittenNow;
     updateLastActivity();
 
-#ifdef VERBOSE_LOGGING
-    std::cout << "Wrote " << bytesWrittenNow << " bytes to socket" << std::endl;
-#endif
-
     // Check if we've sent everything
     if (writeOffset >= writeBuffer.size())
     {
-#ifdef VERBOSE_LOGGING
-        std::cout << "Complete response sent successfully" << std::endl;
-#endif
         writeBuffer.clear();
         writeOffset = 0;
         return true;  // Complete response sent
     }
 
-#ifdef VERBOSE_LOGGING
-    std::cout << "Partial write, " << (writeBuffer.size() - writeOffset) << " bytes remaining" << std::endl;
-#endif
+
     return false;  // Partial write, need to continue later
 }
 
@@ -240,46 +215,24 @@ size_t ClientConnection::getBytesWritten() const
     return bytesWritten;
 }
 
-// FIXED: This is the critical function that was causing the empty response
 bool ClientConnection::processReadBuffer()
 {
     if (!hasCompleteRequest())
     {
-#ifdef VERBOSE_LOGGING
-        std::cout << "Request not complete yet, waiting for more data..." << std::endl;
-#endif
         return false;
     }
 
-#ifdef VERBOSE_LOGGING
-    std::cout << "=== COMPLETE RAW REQUEST RECEIVED ===" << std::endl;
-    std::cout << readBuffer << std::endl;
-    std::cout << "=== END COMPLETE RAW REQUEST ===" << std::endl;
-#endif
-
-    // Parse and handle the request
     if (context.request.parseRequest(readBuffer))
     {
-#ifdef VERBOSE_LOGGING
-        std::cout << "Request parsed successfully, handling..." << std::endl;
-#endif
-        
-        // Clear any previous response
         context.response.reset();
         setState(PROCESSING_REQUEST);
         
-        // Handle the request (this may set a pending async operation)
         handleRequest.handleRequest(context.request, context.response, this);
         
-        // Check if we have an async operation pending
         if (context.state == WAITING_ASYNC) {
-#ifdef VERBOSE_LOGGING
-            std::cout << "Async operation started, waiting for completion..." << std::endl;
-#endif
-            return true; // Request processed, but response not ready yet
+            return true; 
         }
         
-        // CRITICAL FIX: Convert response to string and put in write buffer
         writeBuffer = context.response.toString();
         writeOffset = 0;
         setState(WRITING_RESPONSE);
@@ -291,18 +244,15 @@ bool ClientConnection::processReadBuffer()
         std::cout << writeBuffer.substr(0, 200) << "..." << std::endl;
         std::cout << "=== END RESPONSE PREVIEW ===" << std::endl;
 #endif
-        
-        return true; // Request processed, response ready
+        return true; 
     }
     else
     {
         std::cerr << "Failed to parse request" << std::endl;
         
-        // Generate 400 Bad Request response
+        // Use RequestHandler to generate proper 400 error page from config
         context.response.reset();
-        context.response.setStatus(400, "Bad Request");
-        context.response.setBody("Invalid HTTP request format");
-        context.response.setHeader("Content-Type", "text/plain");
+        handleRequest.generateErrorPage(400, context.response, serverFd);
         
         writeBuffer = context.response.toString();
         writeOffset = 0;
@@ -311,15 +261,6 @@ bool ClientConnection::processReadBuffer()
         return true;
     }
 }
-
-// REMOVED: These old functions are not needed and may cause conflicts
-/*
-void ClientConnection::serveStaticFile(const std::string &requestPath)
-void ClientConnection::serve404()
-std::string ClientConnection::getContentType(const std::string &filePath)
-*/
-
-// ===== STATE MACHINE MANAGEMENT =====
 
 ConnectionState ClientConnection::getState() const
 {
@@ -356,9 +297,7 @@ void ClientConnection::setPendingOperation(AsyncOperation* operation)
 void ClientConnection::completePendingOperation()
 {
     if (!context.pendingOperation) {
-#ifdef VERBOSE_LOGGING
         std::cerr << "ClientConnection: No pending operation to complete" << std::endl;
-#endif
         return;
     }
     

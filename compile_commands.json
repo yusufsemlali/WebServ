@@ -13,9 +13,9 @@
       "Config.o",
       "Config.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/parser",
-    "file": "/home/shams/WebServ/src/parser/Config.cpp",
-    "output": "/home/shams/WebServ/src/parser/Config.o"
+    "directory": "/home/ysemlali/WebServ/src/parser",
+    "file": "/home/ysemlali/WebServ/src/parser/Config.cpp",
+    "output": "/home/ysemlali/WebServ/src/parser/Config.o"
   },
   {
     "arguments": [
@@ -31,9 +31,9 @@
       "Lexer.o",
       "Lexer.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/parser",
-    "file": "/home/shams/WebServ/src/parser/Lexer.cpp",
-    "output": "/home/shams/WebServ/src/parser/Lexer.o"
+    "directory": "/home/ysemlali/WebServ/src/parser",
+    "file": "/home/ysemlali/WebServ/src/parser/Lexer.cpp",
+    "output": "/home/ysemlali/WebServ/src/parser/Lexer.o"
   },
   {
     "arguments": [
@@ -49,9 +49,9 @@
       "parser.o",
       "parser.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/parser",
-    "file": "/home/shams/WebServ/src/parser/parser.cpp",
-    "output": "/home/shams/WebServ/src/parser/parser.o"
+    "directory": "/home/ysemlali/WebServ/src/parser",
+    "file": "/home/ysemlali/WebServ/src/parser/parser.cpp",
+    "output": "/home/ysemlali/WebServ/src/parser/parser.o"
   },
   {
     "arguments": [
@@ -67,9 +67,9 @@
       "Parser.o",
       "Parser.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/parser",
-    "file": "/home/shams/WebServ/src/parser/Parser.cpp",
-    "output": "/home/shams/WebServ/src/parser/Parser.o"
+    "directory": "/home/ysemlali/WebServ/src/parser",
+    "file": "/home/ysemlali/WebServ/src/parser/Parser.cpp",
+    "output": "/home/ysemlali/WebServ/src/parser/Parser.o"
   },
   {
     "arguments": [
@@ -85,9 +85,9 @@
       "TokenType.o",
       "TokenType.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/parser",
-    "file": "/home/shams/WebServ/src/parser/TokenType.cpp",
-    "output": "/home/shams/WebServ/src/parser/TokenType.o"
+    "directory": "/home/ysemlali/WebServ/src/parser",
+    "file": "/home/ysemlali/WebServ/src/parser/TokenType.cpp",
+    "output": "/home/ysemlali/WebServ/src/parser/TokenType.o"
   },
   {
     "arguments": [
@@ -103,9 +103,9 @@
       "HttpRequest.o",
       "HttpRequest.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/http",
-    "file": "/home/shams/WebServ/src/http/HttpRequest.cpp",
-    "output": "/home/shams/WebServ/src/http/HttpRequest.o"
+    "directory": "/home/ysemlali/WebServ/src/http",
+    "file": "/home/ysemlali/WebServ/src/http/HttpRequest.cpp",
+    "output": "/home/ysemlali/WebServ/src/http/HttpRequest.o"
   },
   {
     "arguments": [
@@ -121,9 +121,9 @@
       "HttpResponse.o",
       "HttpResponse.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/http",
-    "file": "/home/shams/WebServ/src/http/HttpResponse.cpp",
-    "output": "/home/shams/WebServ/src/http/HttpResponse.o"
+    "directory": "/home/ysemlali/WebServ/src/http",
+    "file": "/home/ysemlali/WebServ/src/http/HttpResponse.cpp",
+    "output": "/home/ysemlali/WebServ/src/http/HttpResponse.o"
   },
   {
     "arguments": [
@@ -139,9 +139,9 @@
       "HttpServer.o",
       "HttpServer.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/http",
-    "file": "/home/shams/WebServ/src/http/HttpServer.cpp",
-    "output": "/home/shams/WebServ/src/http/HttpServer.o"
+    "directory": "/home/ysemlali/WebServ/src/http",
+    "file": "/home/ysemlali/WebServ/src/http/HttpServer.cpp",
+    "output": "/home/ysemlali/WebServ/src/http/HttpServer.o"
   },
   {
     "arguments": [
@@ -157,9 +157,9 @@
       "RequestHandler.o",
       "RequestHandler.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/http",
-    "file": "/home/shams/WebServ/src/http/RequestHandler.cpp",
-    "output": "/home/shams/WebServ/src/http/RequestHandler.o"
+    "directory": "/home/ysemlali/WebServ/src/http",
+    "file": "/home/ysemlali/WebServ/src/http/RequestHandler.cpp",
+    "output": "/home/ysemlali/WebServ/src/http/RequestHandler.o"
   },
   {
     "arguments": [
@@ -175,9 +175,9 @@
       "CgiOperation.o",
       "CgiOperation.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/http",
-    "file": "/home/shams/WebServ/src/http/CgiOperation.cpp",
-    "output": "/home/shams/WebServ/src/http/CgiOperation.o"
+    "directory": "/home/ysemlali/WebServ/src/http",
+    "file": "/home/ysemlali/WebServ/src/http/CgiOperation.cpp",
+    "output": "/home/ysemlali/WebServ/src/http/CgiOperation.o"
   },
   {
     "arguments": [
@@ -193,9 +193,9 @@
       "CgiResponse.o",
       "CgiResponse.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/http",
-    "file": "/home/shams/WebServ/src/http/CgiResponse.cpp",
-    "output": "/home/shams/WebServ/src/http/CgiResponse.o"
+    "directory": "/home/ysemlali/WebServ/src/http",
+    "file": "/home/ysemlali/WebServ/src/http/CgiResponse.cpp",
+    "output": "/home/ysemlali/WebServ/src/http/CgiResponse.o"
   },
   {
     "arguments": [
@@ -211,9 +211,9 @@
       "ClientConnection.o",
       "ClientConnection.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/event",
-    "file": "/home/shams/WebServ/src/event/ClientConnection.cpp",
-    "output": "/home/shams/WebServ/src/event/ClientConnection.o"
+    "directory": "/home/ysemlali/WebServ/src/event",
+    "file": "/home/ysemlali/WebServ/src/event/ClientConnection.cpp",
+    "output": "/home/ysemlali/WebServ/src/event/ClientConnection.o"
   },
   {
     "arguments": [
@@ -229,9 +229,9 @@
       "EventLoop.o",
       "EventLoop.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/event",
-    "file": "/home/shams/WebServ/src/event/EventLoop.cpp",
-    "output": "/home/shams/WebServ/src/event/EventLoop.o"
+    "directory": "/home/ysemlali/WebServ/src/event",
+    "file": "/home/ysemlali/WebServ/src/event/EventLoop.cpp",
+    "output": "/home/ysemlali/WebServ/src/event/EventLoop.o"
   },
   {
     "arguments": [
@@ -247,9 +247,9 @@
       "signal_handler.o",
       "signal_handler.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/core",
-    "file": "/home/shams/WebServ/src/core/signal_handler.cpp",
-    "output": "/home/shams/WebServ/src/core/signal_handler.o"
+    "directory": "/home/ysemlali/WebServ/src/core",
+    "file": "/home/ysemlali/WebServ/src/core/signal_handler.cpp",
+    "output": "/home/ysemlali/WebServ/src/core/signal_handler.o"
   },
   {
     "arguments": [
@@ -265,9 +265,9 @@
       "SocketManager.o",
       "SocketManager.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/core",
-    "file": "/home/shams/WebServ/src/core/SocketManager.cpp",
-    "output": "/home/shams/WebServ/src/core/SocketManager.o"
+    "directory": "/home/ysemlali/WebServ/src/core",
+    "file": "/home/ysemlali/WebServ/src/core/SocketManager.cpp",
+    "output": "/home/ysemlali/WebServ/src/core/SocketManager.o"
   },
   {
     "arguments": [
@@ -283,9 +283,9 @@
       "utiles.o",
       "utiles.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/core",
-    "file": "/home/shams/WebServ/src/core/utiles.cpp",
-    "output": "/home/shams/WebServ/src/core/utiles.o"
+    "directory": "/home/ysemlali/WebServ/src/core",
+    "file": "/home/ysemlali/WebServ/src/core/utiles.cpp",
+    "output": "/home/ysemlali/WebServ/src/core/utiles.o"
   },
   {
     "arguments": [
@@ -301,9 +301,9 @@
       "debug.o",
       "debug.cpp"
     ],
-    "directory": "/home/shams/WebServ/src/debug",
-    "file": "/home/shams/WebServ/src/debug/debug.cpp",
-    "output": "/home/shams/WebServ/src/debug/debug.o"
+    "directory": "/home/ysemlali/WebServ/src/debug",
+    "file": "/home/ysemlali/WebServ/src/debug/debug.cpp",
+    "output": "/home/ysemlali/WebServ/src/debug/debug.o"
   },
   {
     "arguments": [
@@ -320,8 +320,8 @@
       "src/main.o",
       "src/main.cpp"
     ],
-    "directory": "/home/shams/WebServ",
-    "file": "/home/shams/WebServ/src/main.cpp",
-    "output": "/home/shams/WebServ/src/main.o"
+    "directory": "/home/ysemlali/WebServ",
+    "file": "/home/ysemlali/WebServ/src/main.cpp",
+    "output": "/home/ysemlali/WebServ/src/main.o"
   }
 ]
