@@ -1,9 +1,0 @@
-{
-  "name": "WebServ",
-  "version": "1.0",
-  "features": [
-    "CGI",
-    "POST",
-    "JSON"
-  ]
-}
