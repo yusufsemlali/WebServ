@@ -70,39 +70,35 @@ void HttpResponse::clearBody()
     setHeader("Content-Length", "0");
 }
 
-// FIXED: This is the critical function - make sure it generates proper HTTP
 std::string HttpResponse::toString() const
 {
     std::ostringstream response;
     
-    // FIXED: Use HTTP/1.1 and ensure proper format
     response << "HTTP/1.1 " << statusCode << " " << statusMessage << "\r\n";
     
-    // Add Date header first
     std::time_t now = std::time(0);
     char timeStr[100];
     std::strftime(timeStr, sizeof(timeStr), "%a, %d %b %Y %H:%M:%S GMT", std::gmtime(&now));
     response << "Date: " << timeStr << "\r\n";
     
-    // Add all other headers
     for (std::map<std::string, std::string>::const_iterator it = headers.begin();
          it != headers.end(); ++it)
     {
         response << it->first << ": " << it->second << "\r\n";
     }
     
-    // CRITICAL: Empty line to separate headers from body
     response << "\r\n";
     
-    // Add body
     response << body;
     
     std::string result = response.str();
     
-    // ADDED: Debug the generated response
+#ifdef VERBOSE_LOGGING
     std::cout << "=== GENERATED HTTP RESPONSE ===" << std::endl;
     std::cout << "Status: " << statusCode << " " << statusMessage << std::endl;
     std::cout << "Headers:" << std::endl;
+#endif
+
     for (std::map<std::string, std::string>::const_iterator it = headers.begin();
          it != headers.end(); ++it)
     {
@@ -115,7 +111,9 @@ std::string HttpResponse::toString() const
         if (body.length() > 100) std::cout << "...";
         std::cout << std::endl;
     }
+#ifdef VERBOSE_LOGGING
     std::cout << "=== FINAL RESPONSE GENERATED ===" << std::endl;
+#endif
     
     return result;
 }
