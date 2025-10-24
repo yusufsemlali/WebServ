@@ -73,8 +73,8 @@ done | {
     MEM_GROWTH=$((FINAL_MEM - INITIAL_MEM))
     
     # Get connection stats
-    ESTABLISHED=$(netstat -an 2>/dev/null | grep -c "ESTABLISHED.*:1025" || echo 0)
-    CLOSE_WAIT=$(netstat -an 2>/dev/null | grep -c "CLOSE_WAIT.*:1025" || echo 0)
+    ESTABLISHED=$(netstat -an 2>/dev/null | grep "ESTABLISHED.*:1025" | wc -l)
+    CLOSE_WAIT=$(netstat -an 2>/dev/null | grep "CLOSE_WAIT.*:1025" | wc -l)
     
     # Calculate availability
     TOTAL=$((SUCCESS + FAILED))
@@ -128,9 +128,10 @@ done | {
         echo -e "${YELLOW}⚠️  Memory growth detected${NC}"
     fi
     
-    if [ $CLOSE_WAIT -eq 0 ]; then
+    CLOSE_WAIT_NUM=$(echo "$CLOSE_WAIT" | tr -d ' ')
+    if [ "$CLOSE_WAIT_NUM" -eq 0 ] 2>/dev/null; then
         echo -e "${GREEN}✅ No hanging connections${NC}"
     else
-        echo -e "${YELLOW}⚠️  Hanging connections: $CLOSE_WAIT${NC}"
+        echo -e "${YELLOW}⚠️  Hanging connections: $CLOSE_WAIT_NUM${NC}"
     fi
 }
