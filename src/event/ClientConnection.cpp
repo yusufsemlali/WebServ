@@ -144,8 +144,37 @@ int ClientConnection::getServerFd() const
 
 bool ClientConnection::hasCompleteRequest() const
 {
-    // Check for complete HTTP request (ends with \r\n\r\n)
-    return readBuffer.find("\r\n\r\n") != std::string::npos;
+    // Check for complete HTTP headers (ends with \r\n\r\n)
+    size_t headerEnd = readBuffer.find("\r\n\r\n");
+    if (headerEnd == std::string::npos)
+        return false;
+    
+    // For POST/PUT requests, check if we have the complete body based on Content-Length
+    size_t contentLengthPos = readBuffer.find("Content-Length:");
+    if (contentLengthPos != std::string::npos && contentLengthPos < headerEnd)
+    {
+        // Extract Content-Length value
+        size_t valueStart = contentLengthPos + 15; // Length of "Content-Length:"
+        while (valueStart < headerEnd && (readBuffer[valueStart] == ' ' || readBuffer[valueStart] == '\t'))
+            valueStart++;
+        
+        size_t valueEnd = readBuffer.find("\r\n", valueStart);
+        if (valueEnd != std::string::npos)
+        {
+            std::string contentLengthStr = readBuffer.substr(valueStart, valueEnd - valueStart);
+            size_t contentLength = static_cast<size_t>(atoi(contentLengthStr.c_str()));
+            
+            // Calculate actual body length
+            size_t bodyStart = headerEnd + 4; // After \r\n\r\n
+            size_t bodyLength = readBuffer.length() - bodyStart;
+            
+            // Check if we have received the complete body
+            if (bodyLength < contentLength)
+                return false;
+        }
+    }
+    
+    return true;
 }
 
 HttpRequest &ClientConnection::getCurrentRequest()

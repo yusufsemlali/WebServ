@@ -2,22 +2,9 @@
 <?php
 
 function parsePostData() {
-    // Try to get CONTENT_LENGTH from environment
-    $contentLength = getenv('CONTENT_LENGTH');
-    if ($contentLength === false || $contentLength == '') {
-        $contentLength = 0;
-    } else {
-        $contentLength = intval($contentLength);
-    }
-    
-    if ($contentLength > 0) {
-        $stdin = fopen('php://stdin', 'r');
-        $postData = fread($stdin, $contentLength);
-        fclose($stdin);
-        parse_str($postData, $data);
-        return $data;
-    }
-    return array();
+    // PHP-CGI automatically populates $_POST from stdin
+    // No need to manually read from php://stdin
+    return $_POST;
 }
 
 function calculate($num1, $num2, $operation) {

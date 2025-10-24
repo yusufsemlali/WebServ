@@ -180,7 +180,7 @@
                 <div id="pythonResult" class="result"></div>
                 <div class="curl-example">
                     <strong>cURL Example:</strong><br>
-                    <code>curl -X POST http://localhost:1027/cgi/python/calc.py \<br>
+                    <code id="pythonCurl">curl -X POST http://localhost:1025/cgi/python/calc.py \<br>
                     -d "num1=10&operation=add&num2=5"</code>
                 </div>
             </div>
@@ -213,7 +213,7 @@
                 <div id="phpResult" class="result"></div>
                 <div class="curl-example">
                     <strong>cURL Example:</strong><br>
-                    <code>curl -X POST http://localhost:1027/cgi/php/calc.php \<br>
+                    <code id="phpCurl">curl -X POST http://localhost:1025/cgi/php/calc.php \<br>
                     -d "num1=10&operation=add&num2=5"</code>
                 </div>
             </div>
@@ -225,6 +225,20 @@
     </div>
 
     <script>
+        function updateCurlExample(lang) {
+            const prefix = lang === 'python' ? 'py' : 'php';
+            const num1 = document.getElementById(`${prefix}-num1`).value || '10';
+            const num2 = document.getElementById(`${prefix}-num2`).value || '5';
+            const operation = document.getElementById(`${prefix}-operation`).value || 'add';
+            const url = lang === 'python' ? '/cgi/python/calc.py' : '/cgi/php/calc.php';
+            const host = window.location.host || 'localhost:1025';
+            
+            const curlCmd = `curl -X POST http://${host}${url} \\<br>
+            -d "num1=${num1}&operation=${operation}&num2=${num2}"`;
+            
+            document.getElementById(`${lang}Curl`).innerHTML = curlCmd;
+        }
+
         function submitCalculator(event, lang) {
             event.preventDefault();
             const form = event.target;
@@ -252,6 +266,27 @@
 
             return false;
         }
+
+        // Add event listeners to update curl examples on input change
+        document.addEventListener('DOMContentLoaded', function() {
+            // Python form listeners
+            ['py-num1', 'py-num2', 'py-operation'].forEach(id => {
+                const element = document.getElementById(id);
+                element.addEventListener('input', () => updateCurlExample('python'));
+                element.addEventListener('change', () => updateCurlExample('python'));
+            });
+
+            // PHP form listeners
+            ['php-num1', 'php-num2', 'php-operation'].forEach(id => {
+                const element = document.getElementById(id);
+                element.addEventListener('input', () => updateCurlExample('php'));
+                element.addEventListener('change', () => updateCurlExample('php'));
+            });
+
+            // Initialize curl examples with current host
+            updateCurlExample('python');
+            updateCurlExample('php');
+        });
     </script>
 </body>
 </html>

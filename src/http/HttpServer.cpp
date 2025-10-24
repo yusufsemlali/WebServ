@@ -193,7 +193,6 @@ void HttpServer::handleClientRead(int clientFd)
         AsyncOperation* op = conn->getPendingOperation();
         int cgiFd = op->getMonitorFd();
         
-        // Only add to epoll if not already registered
         if (cgiConnections.find(cgiFd) == cgiConnections.end())
         {
             if (eventLoop.add(cgiFd, EPOLLIN))

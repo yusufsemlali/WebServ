@@ -403,10 +403,8 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
         }
     }
     
-    // Create async CGI operation
     std::string documentRoot = location.root.empty() ? server.root : location.root;
     
-    // Extract port from Host header or use first configured port
     std::string serverPort = "8080";  // default
     std::string hostHeader = request.getHeader("Host");
     size_t colonPos = hostHeader.find(':');
@@ -418,8 +416,14 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
     
     std::string clientAddr = connection->getClientAddress();
     
+    // Get client max body size from location config, fallback to server config
+    size_t clientMaxBodySize = location.clientMaxBodySize;
+    if (clientMaxBodySize == 0) {
+        clientMaxBodySize = server.clientMaxBodySize;
+    }
+    
     CgiOperation* cgiOp = new CgiOperation(scriptPath, interpreterPath, request, documentRoot, 
-                                           serverPort, clientAddr);
+                                           serverPort, clientAddr, clientMaxBodySize);
     
     if (cgiOp->hasError()) {
         std::cerr << "CGI: Failed to start CGI operation: " << cgiOp->getError() << std::endl;
@@ -430,9 +434,7 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
         return;
     }
     
-    // Set the pending operation on the connection
     connection->setPendingOperation(cgiOp);
-    std::cout << "CGI: Async operation set, waiting for completion" << std::endl;
 }
 
 void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 
@@ -443,18 +445,105 @@ void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &
     
     mkdir(uploadDir.c_str(), 0755);
     
-    std::string filename = uploadDir + "/upload_" + getCurrentTimestamp();
+    // Parse multipart/form-data
+    std::string contentType = request.getContentType();
+    std::string boundary;
     
-    if (createFile(filename, request.getBody()))
+    size_t boundaryPos = contentType.find("boundary=");
+    if (boundaryPos != std::string::npos)
     {
-        response.setStatus(201, "Created");
-        response.setBody("File uploaded successfully to " + filename);
-        response.setHeader("Content-Type", "text/plain");
+        boundary = contentType.substr(boundaryPos + 9);
+        if (!boundary.empty() && boundary[0] == '"')
+        {
+            boundary = boundary.substr(1, boundary.find('"', 1) - 1);
+        }
+    }
+    
+    if (boundary.empty())
+    {
+        serveErrorPage(400, response, server);
+        return;
+    }
+    
+    std::string body = request.getBody();
+    std::string boundaryDelimiter = "--" + boundary;
+    
+    // Find the file part
+    size_t partStart = body.find(boundaryDelimiter);
+    if (partStart == std::string::npos)
+    {
+        serveErrorPage(400, response, server);
+        return;
+    }
+    
+    partStart = body.find("\r\n", partStart) + 2;
+    size_t partEnd = body.find(boundaryDelimiter, partStart);
+    
+    if (partEnd == std::string::npos)
+    {
+        serveErrorPage(400, response, server);
+        return;
+    }
+    
+    std::string part = body.substr(partStart, partEnd - partStart);
+    
+    // Extract filename from Content-Disposition header
+    std::string filename;
+    size_t filenamePos = part.find("filename=\"");
+    if (filenamePos != std::string::npos)
+    {
+        filenamePos += 10;
+        size_t filenameEnd = part.find("\"", filenamePos);
+        filename = part.substr(filenamePos, filenameEnd - filenamePos);
+    }
+    
+    if (filename.empty())
+    {
+        filename = "upload_" + getCurrentTimestamp();
+    }
+    
+    // Extract file content (after headers)
+    size_t contentStart = part.find("\r\n\r\n");
+    if (contentStart == std::string::npos)
+    {
+        contentStart = part.find("\n\n");
+        if (contentStart != std::string::npos)
+            contentStart += 2;
     }
     else
     {
-        serveErrorPage(500, response, server);
+        contentStart += 4;
     }
+    
+    if (contentStart == std::string::npos)
+    {
+        serveErrorPage(400, response, server);
+        return;
+    }
+    
+    // Extract content (remove trailing \r\n before boundary)
+    std::string fileContent = part.substr(contentStart);
+    if (fileContent.length() >= 2 && fileContent.substr(fileContent.length() - 2) == "\r\n")
+    {
+        fileContent = fileContent.substr(0, fileContent.length() - 2);
+    }
+    
+    std::string fullPath = uploadDir + "/" + filename;
+    
+    // Save file in binary mode to support all file types (images, etc.)
+    std::ofstream file(fullPath.c_str(), std::ios::binary);
+    if (!file.is_open())
+    {
+        serveErrorPage(500, response, server);
+        return;
+    }
+    
+    file.write(fileContent.c_str(), fileContent.length());
+    file.close();
+    
+    response.setStatus(201, "Created");
+    response.setBody("File uploaded successfully: " + filename);
+    response.setHeader("Content-Type", "text/plain");
 }
 
 void RequestHandler::handleFormData(const HttpRequest &request, HttpResponse &response)

@@ -9,7 +9,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 SERVER_HOST="localhost"
-SERVER_PORT="1024"
+SERVER_PORT="1025"
 BASE_URL="http://${SERVER_HOST}:${SERVER_PORT}"
 
 print_header() {

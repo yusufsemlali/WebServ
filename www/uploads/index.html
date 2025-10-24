@@ -192,10 +192,22 @@
             const button = document.getElementById('uploadButton');
             
             if (input.files.length > 0) {
-                display.textContent = 'Selected: ' + input.files[0].name;
-                button.disabled = false;
+                const file = input.files[0];
+                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                display.textContent = 'Selected: ' + file.name + ' (' + fileSizeMB + ' MB)';
+                
+                // Check file size (10MB limit)
+                if (file.size > 10000000) {
+                    display.textContent += ' - ⚠️ File too large! Max 10MB';
+                    display.style.color = '#dc3545';
+                    button.disabled = true;
+                } else {
+                    display.style.color = '#28a745';
+                    button.disabled = false;
+                }
             } else {
                 display.textContent = 'No file selected';
+                display.style.color = '#6c757d';
                 button.disabled = true;
             }
         }
@@ -247,17 +259,21 @@
 
         <div class="info-box">
             <strong>ℹ️ Information:</strong><br>
-            • Maximum file size: 10 MB<br>
+            • Maximum file size: <strong>10 MB</strong><br>
             • All file types are supported<br>
-            • Files are processed via CGI handler<br>
-            • Delete operations are routed to /bin
+            • Files uploaded via standard HTTP POST<br>
+            • Delete operations use HTTP DELETE method
         </div>
 
         <!-- Files List Section -->
         <div class="files-section">
             <h2>📂 Uploaded Files</h2>
+            <div class="info-box" style="background-color: #e7f3ff; border-left-color: #007bff;">
+                <strong>📝 Note:</strong> Files are uploaded to <code>/uploads/</code> directory.<br>
+                To view all files, visit the directory listing with autoindex enabled.<br>
+                <a href="/uploads/" style="color: #007bff; font-weight: bold;">→ Browse all uploaded files</a>
+            </div>
             <ul class="file-list">
-                <!-- Example files - In a real scenario, this would be dynamically generated -->
                 <li class="file-item">
                     <div class="file-info">
                         <div class="file-name-display">test.txt</div>
@@ -272,21 +288,10 @@
                         </button>
                     </div>
                 </li>
-                <li class="file-item">
-                    <div class="file-info">
-                        <div class="file-name-display">upload_1761056429</div>
-                        <div class="file-meta">Size: 224 bytes</div>
-                    </div>
-                    <div class="file-actions">
-                        <a href="/uploads/upload_1761056429" class="action-button download-button" download>
-                            ⬇️ Download
-                        </a>
-                        <button class="action-button delete-button" onclick="deleteFile('upload_1761056429')">
-                            🗑️ Delete
-                        </button>
-                    </div>
-                </li>
             </ul>
+            <p style="text-align: center; color: #6c757d; margin-top: 20px;">
+                <em>File listing is static. Refresh page to see newly uploaded files.</em>
+            </p>
         </div>
 
         <div style="text-align: center;">

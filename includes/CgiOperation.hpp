@@ -12,7 +12,8 @@ class CgiOperation : public AsyncOperation
 public:
     CgiOperation(const std::string& scriptPath, const std::string& interpreterPath, 
                  const HttpRequest& request, const std::string& documentRoot = "./www",
-                 const std::string& serverPort = "8080", const std::string& clientAddr = "127.0.0.1");
+                 const std::string& serverPort = "8080", const std::string& clientAddr = "127.0.0.1",
+                 size_t clientMaxBodySize = 0);
     virtual ~CgiOperation();
     
     bool isComplete() const;
@@ -42,6 +43,7 @@ private:
     std::string documentRoot;
     std::string serverPort;
     std::string clientAddress;
+    size_t clientMaxBodySize;
     
     bool startCgiProcess(const HttpRequest& request);
     char** createCgiEnvironment(const HttpRequest& request);

@@ -12,11 +12,12 @@
 
 CgiOperation::CgiOperation(const std::string& scriptPath, const std::string& interpreterPath, 
                            const HttpRequest& request, const std::string& documentRoot,
-                           const std::string& serverPort, const std::string& clientAddr)
+                           const std::string& serverPort, const std::string& clientAddr,
+                           size_t clientMaxBodySize)
     : childPid(-1), outputFd(-1), inputFd(-1), errorFd(-1),
       completed(false), error(false), 
       scriptPath(scriptPath), interpreterPath(interpreterPath), documentRoot(documentRoot),
-      serverPort(serverPort), clientAddress(clientAddr)
+      serverPort(serverPort), clientAddress(clientAddr), clientMaxBodySize(clientMaxBodySize)
 {
     
     if (request.getMethod() == "POST") {
@@ -179,6 +180,11 @@ char** CgiOperation::createCgiEnvironment(const HttpRequest& request)
     envVars.push_back("REQUEST_URI=" + request.getUri());
     envVars.push_back("DOCUMENT_ROOT=" + documentRoot);
     envVars.push_back("REDIRECT_STATUS=CGI");
+    
+    // Pass client max body size to CGI scripts
+    std::ostringstream maxBodySize;
+    maxBodySize << clientMaxBodySize;
+    envVars.push_back("CLIENT_MAX_BODY_SIZE=" + maxBodySize.str());
     
     if (request.getMethod() == "POST") {
         std::string contentType = request.getHeader("Content-Type");
