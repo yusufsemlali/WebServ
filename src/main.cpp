@@ -18,7 +18,10 @@ int main(void)
     {
         const std::string configFilePath = "configs/default.conf";
         Config config = parse(configFilePath);
+
+#ifdef VERBOSE_LOGGING
         std::cout << "Configuration file parsed successfully." << std::endl;
+#endif
 
         config.validateAndParseConfig();
 
@@ -28,14 +31,14 @@ int main(void)
         printParsedConfig(config);
         printValidationSummary(config);
         printServerStartup(config);
-#else
-        std::cout << "Server configuration loaded. Ready to start." << std::endl;
 #endif
 
         HttpServer server(config);
         g_server = &server;
 
+#ifdef VERBOSE_LOGGING
         std::cout << "Starting HTTP server..." << std::endl;
+#endif
         server.run();
 
         g_server = NULL;

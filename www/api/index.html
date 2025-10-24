@@ -1,9 +1,257 @@
 <!DOCTYPE html>
-<html>
-<head><title>API Directory</title></head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CGI Calculator - WebServ</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #343a40;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        .subtitle {
+            color: #6c757d;
+            font-size: 1rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #343a40;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #007bff;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: normal;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border-left: 4px solid #28a745;
+            display: none;
+        }
+        .result.show {
+            display: block;
+        }
+        .result h3 {
+            color: #28a745;
+            margin-bottom: 10px;
+        }
+        .result-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #343a40;
+            margin: 10px 0;
+        }
+        .error {
+            border-left-color: #dc3545;
+        }
+        .error h3 {
+            color: #dc3545;
+        }
+        .curl-example {
+            background: #f8f9fa;
+            color: #343a40;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #6c757d;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        .curl-example code {
+            color: #007bff;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .back-link:hover {
+            background-color: #5a6268;
+        }
+    </style>
+</head>
 <body>
-    <h1>API Endpoints</h1>
-    <p>This is the API directory.</p>
-    <p>You can send POST requests here to test the server.</p>
+    <div class="container">
+        <div class="header">
+            <h1>CGI Calculator Test</h1>
+            <p class="subtitle">Test POST requests to Python and PHP CGI scripts</p>
+        </div>
+        
+        <div class="grid">
+            <!-- Python Calculator -->
+            <div class="card">
+                <h2>🐍 Python Calculator</h2>
+                <form id="pythonForm" onsubmit="return submitCalculator(event, 'python')">
+                    <div class="form-group">
+                        <label for="py-num1">First Number:</label>
+                        <input type="number" id="py-num1" name="num1" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="py-operation">Operation:</label>
+                        <select id="py-operation" name="operation" required>
+                            <option value="add">Addition (+)</option>
+                            <option value="subtract">Subtraction (-)</option>
+                            <option value="multiply">Multiplication (×)</option>
+                            <option value="divide">Division (÷)</option>
+                            <option value="power">Power (^)</option>
+                            <option value="modulo">Modulo (%)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="py-num2">Second Number:</label>
+                        <input type="number" id="py-num2" name="num2" step="any" required>
+                    </div>
+                    <button type="submit">Calculate with Python</button>
+                </form>
+                <div id="pythonResult" class="result"></div>
+                <div class="curl-example">
+                    <strong>cURL Example:</strong><br>
+                    <code>curl -X POST http://localhost:1027/cgi/python/calc.py \<br>
+                    -d "num1=10&operation=add&num2=5"</code>
+                </div>
+            </div>
+
+            <!-- PHP Calculator -->
+            <div class="card">
+                <h2>🐘 PHP Calculator</h2>
+                <form id="phpForm" onsubmit="return submitCalculator(event, 'php')">
+                    <div class="form-group">
+                        <label for="php-num1">First Number:</label>
+                        <input type="number" id="php-num1" name="num1" step="any" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="php-operation">Operation:</label>
+                        <select id="php-operation" name="operation" required>
+                            <option value="add">Addition (+)</option>
+                            <option value="subtract">Subtraction (-)</option>
+                            <option value="multiply">Multiplication (×)</option>
+                            <option value="divide">Division (÷)</option>
+                            <option value="power">Power (^)</option>
+                            <option value="modulo">Modulo (%)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="php-num2">Second Number:</label>
+                        <input type="number" id="php-num2" name="num2" step="any" required>
+                    </div>
+                    <button type="submit">Calculate with PHP</button>
+                </form>
+                <div id="phpResult" class="result"></div>
+                <div class="curl-example">
+                    <strong>cURL Example:</strong><br>
+                    <code>curl -X POST http://localhost:1027/cgi/php/calc.php \<br>
+                    -d "num1=10&operation=add&num2=5"</code>
+                </div>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="/" class="back-link">← Back to Home</a>
+        </div>
+    </div>
+
+    <script>
+        function submitCalculator(event, lang) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            const resultDiv = document.getElementById(`${lang}Result`);
+            const url = lang === 'python' ? '/cgi/python/calc.py' : '/cgi/php/calc.php';
+
+            resultDiv.innerHTML = '<p>⏳ Calculating...</p>';
+            resultDiv.classList.add('show');
+            resultDiv.classList.remove('error');
+
+            fetch(url, {
+                method: 'POST',
+                body: new URLSearchParams(formData)
+            })
+            .then(response => response.text())
+            .then(data => {
+                resultDiv.innerHTML = data;
+                resultDiv.classList.add('show');
+            })
+            .catch(error => {
+                resultDiv.innerHTML = `<h3>Error</h3><p>${error.message}</p>`;
+                resultDiv.classList.add('show', 'error');
+            });
+
+            return false;
+        }
+    </script>
 </body>
 </html>

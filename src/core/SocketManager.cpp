@@ -25,7 +25,11 @@ SocketManager::~SocketManager()
 bool SocketManager::createServerSocket(const Config::ListenConfig &listenConfig, const Config::ServerConfig *serverConfig)
 {
     std::string listenKey = listenConfig.host + ":" + listenConfig.port;
+
+#ifdef VERBOSE_LOGGING
     std::cout << "Creating socket for " << listenKey << std::endl;
+#endif
+
     std::map<std::string, int>::iterator it = listenAddressToSocket.find(listenKey);
     
     if (it != listenAddressToSocket.end())
@@ -58,8 +62,12 @@ void SocketManager::closeAllSockets()
 
 int SocketManager::acceptConnection(int serverFd, struct sockaddr_in &outClientAddr)
 {
+
+#ifdef VERBOSE_LOGGING
     std::cout << "Accepting connection on server FD: " << serverFd << std::endl;
     std::cout << "Server : " << serverConfigs[serverFd][0]->listenConfigs[0].host << ":" << serverConfigs[serverFd][0]->listenConfigs[0].port << std::endl;
+#endif
+
     socklen_t addrLen = sizeof(outClientAddr);
     int clientFd = accept(serverFd, (struct sockaddr *)&outClientAddr, &addrLen);
     if (clientFd < 0)

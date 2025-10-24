@@ -17,7 +17,6 @@ RequestHandler::RequestHandler(const Config &config, SocketManager &socketManage
 
 RequestHandler::~RequestHandler()
 {
-    // Cleanup request handler
 }
 
 void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &response, ClientConnection* connection)
@@ -25,7 +24,7 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     std::string method = request.getMethod();
     std::string uri = request.getUri();
 
-    std::cout << "Processing " << method << " request for " << uri << std::endl;
+    std::cout << "Processing " << method << " request for " << uri << " from server fd " << connection->getServerFd() << std::endl;
 
     if (!isValidRequest(request))
     {
@@ -43,12 +42,10 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     try 
     {
         const Config::LocationConfig &locationConfig = findLocationConfig(serverConfig, uri);
-        std::cout << "Location found: " << locationConfig.path << std::endl;
         
         if (!isMethodAllowed(method, locationConfig))
         {
             serveErrorPage(405, response, serverConfig);
-            std::cout << "\n--- METHOD NOT ALLOWED RESPONSE ---" << std::endl;
             return;
         }
 
@@ -61,35 +58,26 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
             if (contentLength > maxBodySize)
             {
                 serveErrorPage(413, response, serverConfig);
-                std::cout << "\n--- PAYLOAD TOO LARGE RESPONSE ---" << std::endl;
-                // response.printResponse();
                 return;
             }
         }
 
-        // 4. Handle redirects
         if (!locationConfig.returnUrl.empty())
         {
             handleRedirect(response, locationConfig);
-            std::cout << "\n--- REDIRECT RESPONSE ---" << std::endl;
-            // response.printResponse();
             return;
         }
 
-        // 5. Process request based on method
         if (method == "GET")
         {
-            std::cout << "Processing GET request..." << std::endl;
             processGetRequest(request, response, serverConfig, locationConfig, connection);
         }
         else if (method == "POST")
         {
-            std::cout << "Processing POST request..." << std::endl;
             processPostRequest(request, response, serverConfig, locationConfig, connection);
         }
         else if (method == "DELETE")
         {
-            std::cout << "Processing DELETE request..." << std::endl;
             processDeleteRequest(request, response, serverConfig, locationConfig, connection);
         }
         else
@@ -305,7 +293,7 @@ void RequestHandler::serveDirectoryListing(const std::string &dirPath, HttpRespo
     html << "<tr><th>Name</th><th>Size</th><th>Type</th></tr>\n";
 
     struct dirent* entry;
-    int fileCount = 0;
+
     while ((entry = readdir(dir)) != NULL)
     {
         if (entry->d_name[0] == '.' && (entry->d_name[1] == '\0' || 
@@ -342,7 +330,6 @@ void RequestHandler::serveDirectoryListing(const std::string &dirPath, HttpRespo
         html << "<td>" << fileSize << "</td>";
         html << "<td>" << fileType << "</td>";
         html << "</tr>\n";
-        fileCount++;
     }
 
     html << "</table>\n</body>\n</html>\n";
@@ -420,7 +407,21 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
     if (connection != NULL) {
         
         std::string documentRoot = location.root.empty() ? server.root : location.root;
-        CgiOperation* cgiOp = new CgiOperation(scriptPath, interpreterPath, request, documentRoot);
+        
+        // Extract port from Host header or use first configured port
+        std::string serverPort = "8080";  // default
+        std::string hostHeader = request.getHeader("Host");
+        size_t colonPos = hostHeader.find(':');
+        if (colonPos != std::string::npos) {
+            serverPort = hostHeader.substr(colonPos + 1);
+        } else if (!server.listenConfigs.empty()) {
+            serverPort = server.listenConfigs[0].port;
+        }
+        
+        std::string clientAddr = connection->getClientAddress();
+        
+        CgiOperation* cgiOp = new CgiOperation(scriptPath, interpreterPath, request, documentRoot, 
+                                               serverPort, clientAddr);
         
         if (cgiOp->hasError()) {
             std::cerr << "CGI: Failed to start CGI operation: " << cgiOp->getError() << std::endl;
@@ -431,12 +432,8 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
             return;
         }
         
-        // Set the pending operation on the connection
         connection->setPendingOperation(cgiOp);
-        std::cout << "CGI: Async operation set, waiting for completion" << std::endl;
     } else {
-        // Fallback to blocking CGI (should not happen in normal operation)
-        std::cout << "CGI: No connection provided, using blocking CGI (fallback)" << std::endl;
         CgiHandler cgi(response);
         cgi.ExecuteCgi(scriptPath, interpreterPath, request);
     }
@@ -445,47 +442,30 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
 void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 
                                     const Config::ServerConfig &server, const Config::LocationConfig &location)
 {
-    // Simplified file upload handling
-    std::cout << "UPLOAD: File upload requested" << std::endl;
-    std::cout << "UPLOAD: Body size: " << request.getBody().length() << " bytes" << std::endl;
-    
-    // For now, just save the body to a file
     std::string uploadDir = location.root.empty() ? server.root : location.root;
     uploadDir += "/uploads";
     
-    std::cout << "UPLOAD: Upload directory: " << uploadDir << std::endl;
-    
-    // Create uploads directory if it doesn't exist
     mkdir(uploadDir.c_str(), 0755);
     
     std::string filename = uploadDir + "/upload_" + getCurrentTimestamp();
-    std::cout << "UPLOAD: Target filename: " << filename << std::endl;
     
     if (createFile(filename, request.getBody()))
     {
-        std::cout << "UPLOAD: File uploaded successfully: " << filename << std::endl;
         response.setStatus(201, "Created");
         response.setBody("File uploaded successfully to " + filename);
         response.setHeader("Content-Type", "text/plain");
     }
     else
     {
-        std::cout << "UPLOAD: Failed to save uploaded file" << std::endl;
         serveErrorPage(500, response, server);
     }
 }
 
 void RequestHandler::handleFormData(const HttpRequest &request, HttpResponse &response)
 {
-    std::cout << "FORM: Form data received" << std::endl;
-    std::cout << "FORM: Data length: " << request.getBody().length() << " bytes" << std::endl;
-    std::cout << "FORM: Data content: " << request.getBody() << std::endl;
-    
     response.setStatus(200, "OK");
     response.setBody("Form data processed successfully\nReceived: " + request.getBody());
     response.setHeader("Content-Type", "text/plain");
-    
-    std::cout << "FORM: Response generated" << std::endl;
 }
 
 std::string RequestHandler::resolveFilePath(const std::string &uri, const Config::LocationConfig &location, 
@@ -497,11 +477,6 @@ std::string RequestHandler::resolveFilePath(const std::string &uri, const Config
 
     std::string path = root + uri;
     
-    std::cout << "RESOLVE: URI: " << uri << std::endl;
-    std::cout << "RESOLVE: Root: " << root << std::endl;
-    std::cout << "RESOLVE: Initial path: " << path << std::endl;
-    
-    // Remove any double slashes
     size_t pos = 0;
     while ((pos = path.find("//", pos)) != std::string::npos)
     {

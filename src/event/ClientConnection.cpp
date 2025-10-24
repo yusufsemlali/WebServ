@@ -301,43 +301,28 @@ void ClientConnection::completePendingOperation()
         return;
     }
     
-#ifdef VERBOSE_LOGGING
-    std::cout << "ClientConnection: Completing async operation on socket " << socketFd << std::endl;
-#endif
-    
     if (context.pendingOperation->isComplete()) {
         if (context.pendingOperation->hasError()) {
-            // Operation failed, generate error response
             std::cerr << "Async operation failed: " << context.pendingOperation->getError() << std::endl;
             context.response.reset();
             context.response.setStatus(500, "Internal Server Error");
             context.response.setBody("Async operation failed: " + context.pendingOperation->getError());
             context.response.setHeader("Content-Type", "text/plain");
         } else {
-            // Operation succeeded, use the result
             std::string result = context.pendingOperation->getResult();
-#ifdef VERBOSE_LOGGING
-            std::cout << "Async operation completed successfully, result size: " << result.size() << " bytes" << std::endl;
-#endif
-            
-            // Parse CGI output (headers + body)
+
+           
             context.response.reset();
             parseCgiOutput(result);
         }
         
-        // Clean up the operation
         context.pendingOperation->cleanup();
         delete context.pendingOperation;
         context.pendingOperation = NULL;
         
-        // Prepare response for writing
         writeBuffer = context.response.toString();
         writeOffset = 0;
         setState(WRITING_RESPONSE);
-        
-#ifdef VERBOSE_LOGGING
-        std::cout << "Response ready for writing, size: " << writeBuffer.size() << " bytes" << std::endl;
-#endif
     } else {
         std::cerr << "ClientConnection: Operation not complete, cannot finish!" << std::endl;
     }
@@ -353,7 +338,6 @@ AsyncOperation* ClientConnection::getPendingOperation() const
     return context.pendingOperation;
 }
 
-// ===== STATE QUERIES FOR EVENT LOOP =====
 
 bool ClientConnection::canRead() const
 {
@@ -370,8 +354,6 @@ bool ClientConnection::isReadyForCleanup() const
     return !connected || context.state == CLOSING;
 }
 
-// ===== HELPER METHOD FOR CGI OUTPUT PARSING =====
-
 void ClientConnection::parseCgiOutput(const std::string& output)
 {
     size_t headerEnd = output.find("\r\n\r\n");
@@ -385,7 +367,6 @@ void ClientConnection::parseCgiOutput(const std::string& output)
     }
     
     if (headerEnd != std::string::npos) {
-        // Parse headers
         std::string headers = output.substr(0, headerEnd);
         std::string body = output.substr(headerEnd);
         
@@ -396,7 +377,6 @@ void ClientConnection::parseCgiOutput(const std::string& output)
         while (std::getline(headerStream, line)) {
             if (line.empty() || line == "\r") continue;
             
-            // Remove carriage return if present
             if (!line.empty() && line[line.length() - 1] == '\r') {
                 line.erase(line.length() - 1);
             }
@@ -406,13 +386,11 @@ void ClientConnection::parseCgiOutput(const std::string& output)
                 std::string name = line.substr(0, colonPos);
                 std::string value = line.substr(colonPos + 1);
                 
-                // Trim whitespace
                 while (!value.empty() && (value[0] == ' ' || value[0] == '\t')) {
                     value.erase(0, 1);
                 }
                 
                 if (name == "Status" && !statusSet) {
-                    // Parse status line
                     size_t spacePos = value.find(' ');
                     if (spacePos != std::string::npos) {
                         int statusCode = atoi(value.substr(0, spacePos).c_str());
@@ -426,14 +404,12 @@ void ClientConnection::parseCgiOutput(const std::string& output)
             }
         }
         
-        // Set default status if not provided
         if (!statusSet) {
             context.response.setStatus(200, "OK");
         }
         
         context.response.setBody(body);
     } else {
-        // No headers found, treat entire output as body
         context.response.setStatus(200, "OK");
         context.response.setHeader("Content-Type", "text/html");
         context.response.setBody(output);

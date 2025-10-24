@@ -11,12 +11,13 @@
 #include <errno.h>
 
 CgiOperation::CgiOperation(const std::string& scriptPath, const std::string& interpreterPath, 
-                           const HttpRequest& request, const std::string& documentRoot)
+                           const HttpRequest& request, const std::string& documentRoot,
+                           const std::string& serverPort, const std::string& clientAddr)
     : childPid(-1), outputFd(-1), inputFd(-1), errorFd(-1),
       completed(false), error(false), 
-      scriptPath(scriptPath), interpreterPath(interpreterPath), documentRoot(documentRoot)
+      scriptPath(scriptPath), interpreterPath(interpreterPath), documentRoot(documentRoot),
+      serverPort(serverPort), clientAddress(clientAddr)
 {
-    std::cout << "CgiOperation: Starting CGI for script: " << scriptPath << std::endl;
     
     if (request.getMethod() == "POST") {
         postData = request.getBody();
@@ -53,15 +54,20 @@ void CgiOperation::handleData()
 {
     if (completed) return;
     
-    readFromProcess();
+    std::cout << "CgiOperation: handleData called, reading from process" << std::endl;
     
+    // Write POST data first if we haven't yet
     if (!postData.empty() && inputFd >= 0) {
+        std::cout << "CgiOperation: Writing POST data (" << postData.size() << " bytes remaining)" << std::endl;
         writePostData();
     }
     
+    // Then read from process
+    readFromProcess();
+    
     if (checkProcessStatus()) {
+        std::cout << "CgiOperation: Process completed" << std::endl;
         completed = true;
-        std::cout << "CgiOperation: CGI process completed" << std::endl;
     }
 }
 
@@ -156,8 +162,6 @@ bool CgiOperation::startCgiProcess(const HttpRequest& request)
         std::cerr << "CgiOperation: Failed to set non-blocking mode" << std::endl;
         return false;
     }
-    
-    std::cout << "CgiOperation: CGI process started with PID " << childPid << std::endl;
     return true;
 }
 
@@ -169,19 +173,18 @@ char** CgiOperation::createCgiEnvironment(const HttpRequest& request)
     envVars.push_back("SERVER_SOFTWARE=WebServ/1.0");
     envVars.push_back("SERVER_PROTOCOL=HTTP/1.1");
     envVars.push_back("SERVER_NAME=localhost");
-    envVars.push_back("SERVER_PORT=8080");
+    envVars.push_back("SERVER_PORT=" + serverPort);
     envVars.push_back("REQUEST_METHOD=" + request.getMethod());
     envVars.push_back("SCRIPT_NAME=" + request.getUri());
     envVars.push_back("SCRIPT_FILENAME=" + scriptPath);
     envVars.push_back("QUERY_STRING=" + request.getQuery());
-    envVars.push_back("REMOTE_ADDR=127.0.0.1");
-    envVars.push_back("REMOTE_HOST=localhost");
+    envVars.push_back("REMOTE_ADDR=" + clientAddress);
+    envVars.push_back("REMOTE_HOST=" + clientAddress);
     envVars.push_back("PATH_INFO=");
     envVars.push_back("PATH_TRANSLATED=");
     envVars.push_back("REQUEST_URI=" + request.getUri());
     envVars.push_back("DOCUMENT_ROOT=" + documentRoot);
-    envVars.push_back("HTTP_HOST=localhost:8080");
-    envVars.push_back("REDIRECT_STATUS=200");
+    envVars.push_back("REDIRECT_STATUS=CGI");
     
     if (request.getMethod() == "POST") {
         std::string contentType = request.getHeader("Content-Type");
@@ -193,6 +196,28 @@ char** CgiOperation::createCgiEnvironment(const HttpRequest& request)
         std::ostringstream contentLength;
         contentLength << postData.length();
         envVars.push_back("CONTENT_LENGTH=" + contentLength.str());
+    }
+    
+    // Pass all HTTP headers as HTTP_* environment variables (CGI spec requirement)
+    const std::map<std::string, std::string>& headers = request.getHeaders();
+    for (std::map<std::string, std::string>::const_iterator it = headers.begin(); 
+         it != headers.end(); ++it) {
+        std::string headerName = it->first;
+        std::string headerValue = it->second;
+        
+        // Convert header name to CGI format: "User-Agent" -> "HTTP_USER_AGENT"
+        for (size_t i = 0; i < headerName.length(); ++i) {
+            if (headerName[i] == '-') {
+                headerName[i] = '_';
+            } else {
+                headerName[i] = std::toupper(headerName[i]);
+            }
+        }
+        
+        // Skip Content-Type and Content-Length (already handled above)
+        if (headerName != "CONTENT_TYPE" && headerName != "CONTENT_LENGTH") {
+            envVars.push_back("HTTP_" + headerName + "=" + headerValue);
+        }
     }
     
     char **env = new char*[envVars.size() + 1];
@@ -242,11 +267,8 @@ void CgiOperation::readFromProcess()
     if (bytesRead > 0) {
         readBuffer[bytesRead] = '\0';
         result += std::string(readBuffer, bytesRead);
-        std::cout << "CgiOperation: Read " << bytesRead << " bytes from CGI" << std::endl;
     } else if (bytesRead == 0) {
-        std::cout << "CgiOperation: CGI closed stdout" << std::endl;
     } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
-        std::cerr << "CgiOperation: Read error: " << strerror(errno) << std::endl;
         error = true;
         errorMessage = "Error reading from CGI process";
     }
@@ -254,23 +276,29 @@ void CgiOperation::readFromProcess()
 
 void CgiOperation::writePostData()
 {
-    if (postData.empty()) return;
+    if (postData.empty() && inputFd < 0) return;
     
-    ssize_t bytesWritten = write(inputFd, postData.c_str(), postData.length());
-    
-    if (bytesWritten > 0) {
-        postData.erase(0, bytesWritten);
-        std::cout << "CgiOperation: Wrote " << bytesWritten << " bytes to CGI stdin" << std::endl;
+    if (!postData.empty() && inputFd >= 0) {
+        std::cout << "CgiOperation: Attempting to write " << postData.length() << " bytes to fd " << inputFd << std::endl;
+        ssize_t bytesWritten = write(inputFd, postData.c_str(), postData.length());
         
-        if (postData.empty()) {
+        if (bytesWritten > 0) {
+            std::cout << "CgiOperation: Successfully wrote " << bytesWritten << " bytes" << std::endl;
+            postData.erase(0, bytesWritten);
+            
+            // If all data written, close input fd immediately to signal EOF to CGI
+            if (postData.empty() && inputFd >= 0) {
+                std::cout << "CgiOperation: All POST data written, closing input fd" << std::endl;
+                close(inputFd);
+                inputFd = -1;
+            }
+        } else if (bytesWritten == -1 && errno != EAGAIN && errno != EWOULDBLOCK) {
+            std::cerr << "CgiOperation: Write error: " << strerror(errno) << std::endl;
             close(inputFd);
             inputFd = -1;
-            std::cout << "CgiOperation: All POST data sent, closed stdin" << std::endl;
+        } else if (bytesWritten == -1) {
+            std::cout << "CgiOperation: Write would block (EAGAIN), will retry" << std::endl;
         }
-    } else if (bytesWritten == -1 && errno != EAGAIN && errno != EWOULDBLOCK) {
-        std::cerr << "CgiOperation: Write error: " << strerror(errno) << std::endl;
-        close(inputFd);
-        inputFd = -1;
     }
 }
 
@@ -284,7 +312,6 @@ bool CgiOperation::checkProcessStatus()
     if (result == childPid) {
         if (WIFEXITED(status)) {
             int exitCode = WEXITSTATUS(status);
-            std::cout << "CgiOperation: CGI process exited with code " << exitCode << std::endl;
             
             if (exitCode != 0) {
                 error = true;
@@ -311,8 +338,6 @@ bool CgiOperation::checkProcessStatus()
 
 void CgiOperation::forceCompletion()
 {
-    std::cout << "CgiOperation: Forcing completion due to EPOLLHUP" << std::endl;
-    
     completed = true;
     
     if (childPid > 0) {
@@ -321,20 +346,13 @@ void CgiOperation::forceCompletion()
         if (result == childPid) {
             if (WIFEXITED(status)) {
                 int exitCode = WEXITSTATUS(status);
-                std::cout << "CgiOperation: Process exited with code " << exitCode << std::endl;
                 if (exitCode != 0) {
                     error = true;
-                    errorMessage = "CGI process exited with non-zero status";
                 }
             } else if (WIFSIGNALED(status)) {
-                int signal = WTERMSIG(status);
-                std::cout << "CgiOperation: Process killed by signal " << signal << std::endl;
                 error = true;
-                errorMessage = "CGI process was terminated by signal";
             }
             childPid = -1;
-        } else {
-            std::cout << "CgiOperation: Process still running but stdout closed" << std::endl;
         }
     }
 }

@@ -19,7 +19,6 @@ HttpServer::HttpServer(Config& config)
 
 HttpServer::~HttpServer()
 {
-    // Cleanup connections
     for (std::map<int, ClientConnection*>::iterator it = connections.begin(); it != connections.end(); ++it)
     {
         socketManager.closeConnection(it->first);
@@ -97,7 +96,6 @@ void HttpServer::run()
                 }
             }
         }
-        checkTimeouts();
     }
 }
 
@@ -138,12 +136,14 @@ bool HttpServer::initializeServers()
         }
     }
 
+#ifdef VERBOSE_LOGGING
     std::cout << "Server listening on sockets : ";
     for(size_t i = 0; i < serverSockets.size(); ++i)
     {
         std::cout << serverSockets[i] << ", ";
     }
     std::cout << std::endl;
+#endif
 
     return true;
 }
@@ -157,7 +157,9 @@ void HttpServer::handleNewConnection(int serverFd)
         return;
     }
 
+#ifdef VERBOSE_LOGGING
     std::cout << "New connection accepted on fd: " << clientFd << std::endl;
+#endif
 
     connections[clientFd] = new ClientConnection(clientFd, clientAddr, requestHandler);
     
@@ -171,9 +173,6 @@ void HttpServer::handleNewConnection(int serverFd)
 
 void HttpServer::handleClientRead(int clientFd)
 {
-#ifdef VERBOSE_LOGGING
-    std::cout << "Handling read on client FD: " << clientFd << std::endl;
-#endif
     
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
     if (it == connections.end()) 
@@ -185,7 +184,6 @@ void HttpServer::handleClientRead(int clientFd)
     ClientConnection* conn = it->second;
     if (!conn->readData())
     {
-        std::cout << "Read failed, closing connection" << std::endl;
         closeConnection(clientFd);
         return;
     }
@@ -195,29 +193,26 @@ void HttpServer::handleClientRead(int clientFd)
         AsyncOperation* op = conn->getPendingOperation();
         int cgiFd = op->getMonitorFd();
         
-        std::cout << "Async operation started, monitoring CGI FD: " << cgiFd << std::endl;
         
         if (eventLoop.add(cgiFd, EPOLLIN))
         {
-            cgiConnections[cgiFd] = conn;
-            std::cout << "CGI FD " << cgiFd << " registered for monitoring" << std::endl;
+            cgiConnections[cgiFd] = conn; 
+            op->handleData();
         }
         else
         {
-            std::cerr << "Failed to add CGI FD to event loop" << std::endl;
+            std::cerr << "HttpServer: Failed to add CGI fd " << cgiFd << " to event loop!" << std::endl;
             conn->completePendingOperation();
         }
     }
     else if (conn->isReadyToWrite())
     {
-        std::cout << "Response ready, switching to write mode" << std::endl;
         eventLoop.modify(clientFd, EPOLLIN | EPOLLOUT);
     }
 }
 
 void HttpServer::handleClientWrite(int clientFd)
 {
-    std::cout << "Handling write on client FD: " << clientFd << std::endl;
     
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
     if (it == connections.end()) 
@@ -228,49 +223,34 @@ void HttpServer::handleClientWrite(int clientFd)
 
     ClientConnection* conn = it->second;
     
-    // FIXED: writeData() returns true when complete, false when partial
     bool writeComplete = conn->writeData();
     
     if (!conn->isConnected())
     {
-        std::cout << "Connection closed during write" << std::endl;
         closeConnection(clientFd);
         return;
     }
 
     if (writeComplete)
     {
-        std::cout << "Write complete, response sent successfully" << std::endl;
-        // Response sent completely
         if (!conn->isKeepAlive())
         {
-            std::cout << "Closing connection (no keep-alive)" << std::endl;
             closeConnection(clientFd);
         }
         else
         {
-            // Switch back to read mode for keep-alive
-            std::cout << "Keep-alive connection, switching back to read mode" << std::endl;
             eventLoop.modify(clientFd, EPOLLIN);
         }
-    }
-    else
-    {
-        // Partial write, keep EPOLLOUT to continue writing
-        std::cout << "Partial write, continuing..." << std::endl;
     }
 }
 
 void HttpServer::handleClientError(int clientFd)
 {
-    std::cout << "Client error/hangup on fd: " << clientFd << std::endl;
     closeConnection(clientFd);
 }
 
 void HttpServer::closeConnection(int clientFd)
 {
-    std::cout << "Closing connection on fd: " << clientFd << std::endl;
-    
     eventLoop.remove(clientFd);
     
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
@@ -279,8 +259,6 @@ void HttpServer::closeConnection(int clientFd)
         delete it->second; 
         connections.erase(it);
     }
-    
-    std::cout << "Connection closed successfully" << std::endl;
 }
 
 bool HttpServer::isServerSocket(int fd) const
@@ -303,7 +281,6 @@ bool HttpServer::isCgiSocket(int fd) const
 
 void HttpServer::handleCgiRead(int cgiFd)
 {
-    std::cout << "Handling CGI read on FD: " << cgiFd << std::endl;
     
     std::map<int, ClientConnection*>::iterator it = cgiConnections.find(cgiFd);
     if (it == cgiConnections.end())
@@ -321,25 +298,17 @@ void HttpServer::handleCgiRead(int cgiFd)
         return;
     }
     
-    // Let the operation handle the data
     op->handleData();
     
-    // Check if operation completed
     if (op->isComplete())
     {
-        std::cout << "CGI operation completed on FD: " << cgiFd << std::endl;
-        
-        // Remove CGI FD from event loop
         eventLoop.remove(cgiFd);
         cgiConnections.erase(it);
         
-        // Complete the operation on the client connection
         conn->completePendingOperation();
         
-        // Check if response is ready to write
         if (conn->canWrite())
         {
-            std::cout << "CGI response ready, switching to write mode" << std::endl;
             eventLoop.modify(conn->getSocketFd(), EPOLLIN | EPOLLOUT);
         }
     }
@@ -347,7 +316,6 @@ void HttpServer::handleCgiRead(int cgiFd)
 
 void HttpServer::handleCgiError(int cgiFd)
 {
-    std::cout << "CGI error/hangup on FD: " << cgiFd << std::endl;
     
     std::map<int, ClientConnection*>::iterator it = cgiConnections.find(cgiFd);
     if (it != cgiConnections.end())
@@ -356,36 +324,22 @@ void HttpServer::handleCgiError(int cgiFd)
         AsyncOperation* op = conn->getPendingOperation();
         
         if (op) {
-            // EPOLLHUP might just mean CGI finished normally
-            // Let the operation handle any remaining data and check status
             op->handleData();
             
-            // Cast to CgiOperation to call forceCompletion
             CgiOperation* cgiOp = dynamic_cast<CgiOperation*>(op);
             if (cgiOp && !op->isComplete()) {
-                std::cout << "CGI operation not complete after EPOLLHUP, forcing completion" << std::endl;
                 cgiOp->forceCompletion();
             }
         }
         
-        // Complete the operation
         conn->completePendingOperation();
         
-        // Remove from event loop and cleanup
         eventLoop.remove(cgiFd);
         cgiConnections.erase(it);
         
-        // Check if we need to send response
         if (conn->canWrite())
         {
-            std::cout << "CGI finished, switching to write mode for response" << std::endl;
             eventLoop.modify(conn->getSocketFd(), EPOLLIN | EPOLLOUT);
         }
     }
-}
-
-void HttpServer::checkTimeouts()
-{
-    // TODO: Implement timeout logic if needed
-    // For now, this can be empty
 }

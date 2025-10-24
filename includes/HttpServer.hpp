@@ -1,7 +1,6 @@
 #pragma once
 
 #include <map>
-#include <string>
 
 #include "ClientConnection.hpp"
 #include "Config.hpp"
@@ -27,7 +26,7 @@ class HttpServer
     bool running;
 
     std::map<int, ClientConnection *> connections;
-    std::map<int, ClientConnection *> cgiConnections;  // Map CGI FD to client connection
+    std::map<int, ClientConnection *> cgiConnections;
 
     bool initializeServers();
 
@@ -35,12 +34,11 @@ class HttpServer
     void handleClientRead(int clientFd);
     void handleClientWrite(int clientFd);
     void handleClientError(int clientFd);
-    void handleCgiRead(int cgiFd);     // New: Handle CGI output ready
-    void handleCgiError(int cgiFd);    // New: Handle CGI errors
+    void handleCgiRead(int cgiFd);
+    void handleCgiError(int cgiFd);
 
     void closeConnection(int clientFd);
     bool isServerSocket(int fd) const;
-    bool isCgiSocket(int fd) const;    // New: Check if FD is CGI socket
+    bool isCgiSocket(int fd) const;
 
-    void checkTimeouts();
 };

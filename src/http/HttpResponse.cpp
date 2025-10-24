@@ -92,7 +92,8 @@ std::string HttpResponse::toString() const
     response << body;
     
     std::string result = response.str();
-    
+
+#ifdef VERBOSE_LOGGING
     for (std::map<std::string, std::string>::const_iterator it = headers.begin();
          it != headers.end(); ++it)
     {
@@ -103,6 +104,7 @@ std::string HttpResponse::toString() const
         if (body.length() > 100) std::cout << "...";
         std::cout << std::endl;
     }
+#endif
 
     return result;
 }
