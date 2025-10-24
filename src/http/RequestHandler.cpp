@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <cstdio>
-#include "CgiHandler.hpp"
 #include "CgiOperation.hpp"
 #include "ClientConnection.hpp"
 
@@ -404,39 +403,36 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
         }
     }
     
-    if (connection != NULL) {
-        
-        std::string documentRoot = location.root.empty() ? server.root : location.root;
-        
-        // Extract port from Host header or use first configured port
-        std::string serverPort = "8080";  // default
-        std::string hostHeader = request.getHeader("Host");
-        size_t colonPos = hostHeader.find(':');
-        if (colonPos != std::string::npos) {
-            serverPort = hostHeader.substr(colonPos + 1);
-        } else if (!server.listenConfigs.empty()) {
-            serverPort = server.listenConfigs[0].port;
-        }
-        
-        std::string clientAddr = connection->getClientAddress();
-        
-        CgiOperation* cgiOp = new CgiOperation(scriptPath, interpreterPath, request, documentRoot, 
-                                               serverPort, clientAddr);
-        
-        if (cgiOp->hasError()) {
-            std::cerr << "CGI: Failed to start CGI operation: " << cgiOp->getError() << std::endl;
-            response.setStatus(500, "Internal Server Error");
-            response.setBody("Failed to start CGI script: " + cgiOp->getError());
-            response.setHeader("Content-Type", "text/plain");
-            delete cgiOp;
-            return;
-        }
-        
-        connection->setPendingOperation(cgiOp);
-    } else {
-        CgiHandler cgi(response);
-        cgi.ExecuteCgi(scriptPath, interpreterPath, request);
+    // Create async CGI operation
+    std::string documentRoot = location.root.empty() ? server.root : location.root;
+    
+    // Extract port from Host header or use first configured port
+    std::string serverPort = "8080";  // default
+    std::string hostHeader = request.getHeader("Host");
+    size_t colonPos = hostHeader.find(':');
+    if (colonPos != std::string::npos) {
+        serverPort = hostHeader.substr(colonPos + 1);
+    } else if (!server.listenConfigs.empty()) {
+        serverPort = server.listenConfigs[0].port;
     }
+    
+    std::string clientAddr = connection->getClientAddress();
+    
+    CgiOperation* cgiOp = new CgiOperation(scriptPath, interpreterPath, request, documentRoot, 
+                                           serverPort, clientAddr);
+    
+    if (cgiOp->hasError()) {
+        std::cerr << "CGI: Failed to start CGI operation: " << cgiOp->getError() << std::endl;
+        response.setStatus(500, "Internal Server Error");
+        response.setBody("Failed to start CGI script: " + cgiOp->getError());
+        response.setHeader("Content-Type", "text/plain");
+        delete cgiOp;
+        return;
+    }
+    
+    // Set the pending operation on the connection
+    connection->setPendingOperation(cgiOp);
+    std::cout << "CGI: Async operation set, waiting for completion" << std::endl;
 }
 
 void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 
