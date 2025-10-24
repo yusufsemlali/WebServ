@@ -193,16 +193,19 @@ void HttpServer::handleClientRead(int clientFd)
         AsyncOperation* op = conn->getPendingOperation();
         int cgiFd = op->getMonitorFd();
         
-        
-        if (eventLoop.add(cgiFd, EPOLLIN))
+        // Only add to epoll if not already registered
+        if (cgiConnections.find(cgiFd) == cgiConnections.end())
         {
-            cgiConnections[cgiFd] = conn; 
-            op->handleData();
-        }
-        else
-        {
-            std::cerr << "HttpServer: Failed to add CGI fd " << cgiFd << " to event loop!" << std::endl;
-            conn->completePendingOperation();
+            if (eventLoop.add(cgiFd, EPOLLIN))
+            {
+                cgiConnections[cgiFd] = conn; 
+                op->handleData();
+            }
+            else
+            {
+                std::cerr << "HttpServer: Failed to add CGI fd " << cgiFd << " to event loop!" << std::endl;
+                conn->completePendingOperation();
+            }
         }
     }
     else if (conn->isReadyToWrite())

@@ -24,7 +24,7 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     std::string method = request.getMethod();
     std::string uri = request.getUri();
 
-    std::cout << "Processing " << method << " request for " << uri << " from server fd " << connection->getServerFd() << std::endl;
+    std::cout << "Processing " << method << " request for " << uri << " from client " << connection->getClientAddress() << std::endl;
 
     if (!isValidRequest(request))
     {

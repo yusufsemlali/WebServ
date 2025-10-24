@@ -53,20 +53,14 @@ int CgiOperation::getMonitorFd() const
 void CgiOperation::handleData()
 {
     if (completed) return;
-    
-    std::cout << "CgiOperation: handleData called, reading from process" << std::endl;
-    
-    // Write POST data first if we haven't yet
+
     if (!postData.empty() && inputFd >= 0) {
-        std::cout << "CgiOperation: Writing POST data (" << postData.size() << " bytes remaining)" << std::endl;
         writePostData();
     }
-    
-    // Then read from process
+
     readFromProcess();
     
     if (checkProcessStatus()) {
-        std::cout << "CgiOperation: Process completed" << std::endl;
         completed = true;
     }
 }
@@ -279,16 +273,12 @@ void CgiOperation::writePostData()
     if (postData.empty() && inputFd < 0) return;
     
     if (!postData.empty() && inputFd >= 0) {
-        std::cout << "CgiOperation: Attempting to write " << postData.length() << " bytes to fd " << inputFd << std::endl;
         ssize_t bytesWritten = write(inputFd, postData.c_str(), postData.length());
         
         if (bytesWritten > 0) {
-            std::cout << "CgiOperation: Successfully wrote " << bytesWritten << " bytes" << std::endl;
             postData.erase(0, bytesWritten);
             
-            // If all data written, close input fd immediately to signal EOF to CGI
             if (postData.empty() && inputFd >= 0) {
-                std::cout << "CgiOperation: All POST data written, closing input fd" << std::endl;
                 close(inputFd);
                 inputFd = -1;
             }
@@ -296,8 +286,6 @@ void CgiOperation::writePostData()
             std::cerr << "CgiOperation: Write error: " << strerror(errno) << std::endl;
             close(inputFd);
             inputFd = -1;
-        } else if (bytesWritten == -1) {
-            std::cout << "CgiOperation: Write would block (EAGAIN), will retry" << std::endl;
         }
     }
 }

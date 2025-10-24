@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .upload-container {
+            max-width: 800px;
+            width: 90%;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .page-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+            margin: 0 0 10px 0;
+            text-align: center;
+        }
+        .page-subtitle {
+            font-size: 1rem;
+            color: #6c757d;
+            margin: 0 0 30px 0;
+            text-align: center;
+        }
+        .upload-section {
+            background-color: #e7f3ff;
+            padding: 30px;
+            border-radius: 8px;
+            border: 2px dashed #007bff;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .upload-section h2 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        input[type="file"] {
+            opacity: 0;
+            position: absolute;
+            z-index: -1;
+        }
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #6c757d;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .file-input-label:hover {
+            background-color: #5a6268;
+        }
+        .file-name {
+            display: block;
+            margin-top: 10px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .upload-button {
+            padding: 12px 30px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        .upload-button:hover {
+            background-color: #218838;
+        }
+        .upload-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .files-section {
+            margin-top: 30px;
+        }
+        .files-section h2 {
+            color: #343a40;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        .file-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-info {
+            flex-grow: 1;
+        }
+        .file-name-display {
+            font-weight: bold;
+            color: #343a40;
+            margin-bottom: 5px;
+        }
+        .file-meta {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .action-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+        .download-button {
+            background-color: #007bff;
+            color: white;
+        }
+        .download-button:hover {
+            background-color: #0056b3;
+        }
+        .delete-button {
+            background-color: #dc3545;
+            color: white;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+        .info-box {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+            text-align: left;
+        }
+        .server-info {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .back-link:hover {
+            background-color: #5a6268;
+        }
+    </style>
+    <script>
+        function updateFileName() {
+            const input = document.getElementById('fileInput');
+            const display = document.getElementById('fileName');
+            const button = document.getElementById('uploadButton');
+            
+            if (input.files.length > 0) {
+                display.textContent = 'Selected: ' + input.files[0].name;
+                button.disabled = false;
+            } else {
+                display.textContent = 'No file selected';
+                button.disabled = true;
+            }
+        }
+
+        function deleteFile(filename) {
+            if (!confirm('Are you sure you want to delete "' + filename + '"?')) {
+                return false;
+            }
+            
+            fetch('/bin/' + filename, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                if (response.ok) {
+                    alert('File deleted successfully!');
+                    location.reload();
+                } else {
+                    alert('Failed to delete file. Status: ' + response.status);
+                }
+            })
+            .catch(error => {
+                alert('Error deleting file: ' + error);
+            });
+            
+            return false;
+        }
+    </script>
+</head>
+<body>
+    <div class="upload-container">
+        <div class="page-title">📁 File Upload Manager</div>
+        <div class="page-subtitle">Upload and manage your files</div>
+        
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h2>Upload New File</h2>
+            <form method="POST" enctype="multipart/form-data" action="/uploads">
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" name="file" onchange="updateFileName()" required>
+                    <label for="fileInput" class="file-input-label">📎 Choose File</label>
+                </div>
+                <span id="fileName" class="file-name">No file selected</span>
+                <br>
+                <button type="submit" id="uploadButton" class="upload-button" disabled>
+                    ⬆️ Upload File
+                </button>
+            </form>
+        </div>
+
+        <div class="info-box">
+            <strong>ℹ️ Information:</strong><br>
+            • Maximum file size: 10 MB<br>
+            • All file types are supported<br>
+            • Files are processed via CGI handler<br>
+            • Delete operations are routed to /bin
+        </div>
+
+        <!-- Files List Section -->
+        <div class="files-section">
+            <h2>📂 Uploaded Files</h2>
+            <ul class="file-list">
+                <!-- Example files - In a real scenario, this would be dynamically generated -->
+                <li class="file-item">
+                    <div class="file-info">
+                        <div class="file-name-display">test.txt</div>
+                        <div class="file-meta">Size: 17 bytes | Type: text/plain</div>
+                    </div>
+                    <div class="file-actions">
+                        <a href="/uploads/test.txt" class="action-button download-button" download>
+                            ⬇️ Download
+                        </a>
+                        <button class="action-button delete-button" onclick="deleteFile('test.txt')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </li>
+                <li class="file-item">
+                    <div class="file-info">
+                        <div class="file-name-display">upload_1761056429</div>
+                        <div class="file-meta">Size: 224 bytes</div>
+                    </div>
+                    <div class="file-actions">
+                        <a href="/uploads/upload_1761056429" class="action-button download-button" download>
+                            ⬇️ Download
+                        </a>
+                        <button class="action-button delete-button" onclick="deleteFile('upload_1761056429')">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="/" class="back-link">← Back to Home</a>
+        </div>
+
+        <div class="server-info">
+            WebServ/1.0 - HTTP Server | File Upload Manager
+        </div>
+    </div>
+</body>
+</html>
