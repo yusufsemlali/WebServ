@@ -8,6 +8,11 @@
 # Build directories
 /build/
 
+# Ignore config files
+*.sh
+*.md
+compile_commands.json
+
 # Dependency files
 *.dep
 

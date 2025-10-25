@@ -195,6 +195,25 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
     {
         std::string filePath = resolveFilePath(uri, location, server);
         
+#ifdef VERBOSE_LOGGING
+        std::cout << "POST: Content-Type: " << contentType << std::endl;
+        std::cout << "POST: Parsed body size: " << request.getBody().size() << " bytes" << std::endl;
+        std::cout << "POST: Body content: [" << request.getBody() << "]" << std::endl;
+#endif
+        
+        if (fileExists(filePath) && isDirectory(filePath))
+        {
+            serveErrorPage(409, response, server);  // Conflict: path is a directory
+            return;
+        }
+        
+        std::string parentDir = filePath.substr(0, filePath.find_last_of('/'));
+        if (!parentDir.empty() && fileExists(parentDir) && access(parentDir.c_str(), W_OK) != 0)
+        {
+            serveErrorPage(403, response, server);
+            return;
+        }
+        
         if (createFile(filePath, request.getBody()))
         {
             response.setStatus(201, "Created");
@@ -602,14 +621,25 @@ bool RequestHandler::hasPermission(const std::string &path) const
 
 bool RequestHandler::createFile(const std::string &path, const std::string &content) const
 {
+    #ifdef VERBOSE_LOGGING
+    std::cout << "Creating file at path: " << path << std::endl;
+    #endif
+    
     std::ofstream file(path.c_str());
     if (!file.is_open())
     {
+        #ifdef VERBOSE_LOGGING
+        std::cerr << "Failed to open file for writing: " << path << std::endl;
+        #endif
         return false;
     }
     
     file << content;
     file.close();
+    
+    #ifdef VERBOSE_LOGGING
+    std::cout << "File created successfully with " << content.size() << " bytes" << std::endl;
+    #endif
     
     return true;
 }

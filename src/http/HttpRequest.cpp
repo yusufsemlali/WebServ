@@ -261,7 +261,18 @@ bool HttpRequest::parseBody(const std::string &rawRequest)
 
     if (bodyStart < rawRequest.length())
     {
-        body = rawRequest.substr(bodyStart);
+        // Only read Content-Length bytes if specified
+        size_t contentLength = getContentLength();
+        if (contentLength > 0)
+        {
+            size_t availableBytes = rawRequest.length() - bodyStart;
+            size_t bytesToRead = contentLength < availableBytes ? contentLength : availableBytes;
+            body = rawRequest.substr(bodyStart, bytesToRead);
+        }
+        else
+        {
+            body = rawRequest.substr(bodyStart);
+        }
     }
     else
     {

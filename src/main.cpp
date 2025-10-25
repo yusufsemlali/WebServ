@@ -2,7 +2,7 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "core.hpp"
+#include "Core.hpp"
 #ifdef DEBUG
 #include "debug.hpp"
 #endif

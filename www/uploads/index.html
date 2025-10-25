@@ -3,303 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>File Upload Manager</title>
+    <title>WebServ - HTTP Server in C++98</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
         body {
             font-family: Arial, sans-serif;
             background-color: #f8f9fa;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
+            padding: 20px;
         }
-        .upload-container {
-            max-width: 800px;
-            width: 90%;
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .hero {
+            background: white;
+            padding: 50px 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .hero h1 {
+            font-size: 3rem;
+            color: #007bff;
+            margin-bottom: 15px;
+        }
+        .hero .subtitle {
+            font-size: 1.2rem;
+            color: #6c757d;
+            margin-bottom: 10px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            background-color: #28a745;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 15px;
+        }
+        .links-section {
             background: white;
             padding: 40px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        .page-title {
-            font-size: 2rem;
-            font-weight: bold;
-            color: #007bff;
-            margin: 0 0 10px 0;
-            text-align: center;
-        }
-        .page-subtitle {
-            font-size: 1rem;
-            color: #6c757d;
-            margin: 0 0 30px 0;
-            text-align: center;
-        }
-        .upload-section {
-            background-color: #e7f3ff;
-            padding: 30px;
-            border-radius: 8px;
-            border: 2px dashed #007bff;
             margin-bottom: 30px;
-            text-align: center;
         }
-        .upload-section h2 {
-            color: #007bff;
-            margin-top: 0;
-        }
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            margin: 20px 0;
-        }
-        input[type="file"] {
-            opacity: 0;
-            position: absolute;
-            z-index: -1;
-        }
-        .file-input-label {
-            display: inline-block;
-            padding: 12px 24px;
-            background-color: #6c757d;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-        .file-input-label:hover {
-            background-color: #5a6268;
-        }
-        .file-name {
-            display: block;
-            margin-top: 10px;
-            color: #6c757d;
-            font-size: 0.9rem;
-        }
-        .upload-button {
-            padding: 12px 30px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 1rem;
-            transition: background-color 0.3s;
-            margin-top: 10px;
-        }
-        .upload-button:hover {
-            background-color: #218838;
-        }
-        .upload-button:disabled {
-            background-color: #6c757d;
-            cursor: not-allowed;
-        }
-        .files-section {
-            margin-top: 30px;
-        }
-        .files-section h2 {
+        .links-section h2 {
             color: #343a40;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
             border-bottom: 2px solid #007bff;
-            padding-bottom: 10px;
         }
-        .file-list {
-            list-style: none;
-            padding: 0;
+        .link-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
         }
-        .file-item {
+        .link-item {
+            display: block;
+            padding: 15px 20px;
             background-color: #f8f9fa;
-            padding: 15px;
-            margin: 10px 0;
-            border-radius: 4px;
             border-left: 4px solid #007bff;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .file-info {
-            flex-grow: 1;
-        }
-        .file-name-display {
-            font-weight: bold;
-            color: #343a40;
-            margin-bottom: 5px;
-        }
-        .file-meta {
-            font-size: 0.85rem;
-            color: #6c757d;
-        }
-        .file-actions {
-            display: flex;
-            gap: 10px;
-        }
-        .action-button {
-            padding: 8px 16px;
-            border: none;
             border-radius: 4px;
-            cursor: pointer;
             text-decoration: none;
-            font-size: 0.9rem;
-            transition: background-color 0.3s;
+            color: #007bff;
+            transition: all 0.3s;
         }
-        .download-button {
+        .link-item:hover {
             background-color: #007bff;
             color: white;
+            transform: translateX(5px);
         }
-        .download-button:hover {
-            background-color: #0056b3;
+        .info-section {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        .delete-button {
-            background-color: #dc3545;
-            color: white;
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
         }
-        .delete-button:hover {
-            background-color: #c82333;
-        }
-        .info-box {
-            background-color: #fff3cd;
+        .info-item {
             padding: 15px;
+            background-color: #f8f9fa;
             border-radius: 4px;
-            margin: 20px 0;
-            border-left: 4px solid #ffc107;
-            text-align: left;
+            border-left: 4px solid #28a745;
         }
-        .server-info {
+        .info-item strong {
+            color: #343a40;
+            display: block;
+            margin-bottom: 5px;
+        }
+        .info-item span {
+            color: #6c757d;
+        }
+        .server-footer {
+            text-align: center;
             margin-top: 30px;
             padding-top: 20px;
             border-top: 1px solid #dee2e6;
             color: #6c757d;
             font-size: 0.9rem;
-            text-align: center;
-        }
-        .back-link {
-            display: inline-block;
-            margin-top: 20px;
-            padding: 10px 20px;
-            background-color: #6c757d;
-            color: white;
-            text-decoration: none;
-            border-radius: 4px;
-            transition: background-color 0.3s;
-        }
-        .back-link:hover {
-            background-color: #5a6268;
         }
     </style>
-    <script>
-        function updateFileName() {
-            const input = document.getElementById('fileInput');
-            const display = document.getElementById('fileName');
-            const button = document.getElementById('uploadButton');
-            
-            if (input.files.length > 0) {
-                const file = input.files[0];
-                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-                display.textContent = 'Selected: ' + file.name + ' (' + fileSizeMB + ' MB)';
-                
-                // Check file size (10MB limit)
-                if (file.size > 10000000) {
-                    display.textContent += ' - ⚠️ File too large! Max 10MB';
-                    display.style.color = '#dc3545';
-                    button.disabled = true;
-                } else {
-                    display.style.color = '#28a745';
-                    button.disabled = false;
-                }
-            } else {
-                display.textContent = 'No file selected';
-                display.style.color = '#6c757d';
-                button.disabled = true;
-            }
-        }
-
-        function deleteFile(filename) {
-            if (!confirm('Are you sure you want to delete "' + filename + '"?')) {
-                return false;
-            }
-            
-            fetch('/bin/' + filename, {
-                method: 'DELETE'
-            })
-            .then(response => {
-                if (response.ok) {
-                    alert('File deleted successfully!');
-                    location.reload();
-                } else {
-                    alert('Failed to delete file. Status: ' + response.status);
-                }
-            })
-            .catch(error => {
-                alert('Error deleting file: ' + error);
-            });
-            
-            return false;
-        }
-    </script>
 </head>
 <body>
-    <div class="upload-container">
-        <div class="page-title">📁 File Upload Manager</div>
-        <div class="page-subtitle">Upload and manage your files</div>
-        
-        <!-- Upload Section -->
-        <div class="upload-section">
-            <h2>Upload New File</h2>
-            <form method="POST" enctype="multipart/form-data" action="/uploads">
-                <div class="file-input-wrapper">
-                    <input type="file" id="fileInput" name="file" onchange="updateFileName()" required>
-                    <label for="fileInput" class="file-input-label">📎 Choose File</label>
-                </div>
-                <span id="fileName" class="file-name">No file selected</span>
-                <br>
-                <button type="submit" id="uploadButton" class="upload-button" disabled>
-                    ⬆️ Upload File
-                </button>
-            </form>
+    <div class="container">
+        <!-- Hero Section -->
+        <div class="hero">
+            <h1>WebServ</h1>
+            <div class="subtitle">HTTP/1.1 Server Test Environment</div>
+            <span class="status-badge">● Server Running</span>
         </div>
 
-        <div class="info-box">
-            <strong>ℹ️ Information:</strong><br>
-            • Maximum file size: <strong>10 MB</strong><br>
-            • All file types are supported<br>
-            • Files uploaded via standard HTTP POST<br>
-            • Delete operations use HTTP DELETE method
-        </div>
-
-        <!-- Files List Section -->
-        <div class="files-section">
-            <h2>📂 Uploaded Files</h2>
-            <div class="info-box" style="background-color: #e7f3ff; border-left-color: #007bff;">
-                <strong>📝 Note:</strong> Files are uploaded to <code>/uploads/</code> directory.<br>
-                To view all files, visit the directory listing with autoindex enabled.<br>
-                <a href="/uploads/" style="color: #007bff; font-weight: bold;">→ Browse all uploaded files</a>
+        <!-- Quick Links -->
+        <div class="links-section">
+            <h2>Testing Area 📂</h2>
+            <div class="link-grid">
+                <a href="/api/" class="link-item">🧮 Testing CGI Calculator API</a>
+                <a href="/uploads/" class="link-item">📤 Testing Uploads Directory</a>
+                <a href="/bin/" class="link-item">🗑️ Testing Delete Test Zone</a>
             </div>
-            <ul class="file-list">
-                <li class="file-item">
-                    <div class="file-info">
-                        <div class="file-name-display">test.txt</div>
-                        <div class="file-meta">Size: 17 bytes | Type: text/plain</div>
-                    </div>
-                    <div class="file-actions">
-                        <a href="/uploads/test.txt" class="action-button download-button" download>
-                            ⬇️ Download
-                        </a>
-                        <button class="action-button delete-button" onclick="deleteFile('test.txt')">
-                            🗑️ Delete
-                        </button>
-                    </div>
-                </li>
-            </ul>
-            <p style="text-align: center; color: #6c757d; margin-top: 20px;">
-                <em>File listing is static. Refresh page to see newly uploaded files.</em>
-            </p>
         </div>
 
-        <div style="text-align: center;">
-            <a href="/" class="back-link">← Back to Home</a>
+        <!-- Server Info -->
+        <div class="info-section">
+            <h2 style="color: #343a40; margin-bottom: 20px;">📊 Server Information</h2>
+            <div class="info-grid">
+                <div class="info-item">
+                    <strong>Version</strong>
+                    <span>WebServ/1.0</span>
+                </div>
+                <div class="info-item">
+                    <strong>Protocol</strong>
+                    <span>HTTP/1.1</span>
+                </div>
+                <div class="info-item">
+                    <strong>Language</strong>
+                    <span>C++98</span>
+                </div>
+                <div class="info-item">
+                    <strong>I/O Model</strong>
+                    <span>Epoll (Non-blocking)</span>
+                </div>
+                <div class="info-item">
+                    <strong>CGI Engines</strong>
+                    <span>Python, PHP</span>
+                </div>
+                <div class="info-item">
+                    <strong>Ports</strong>
+                    <span>1026, 1027</span>
+                </div>
+            </div>
         </div>
 
-        <div class="server-info">
-            WebServ/1.0 - HTTP Server | File Upload Manager
+        <div class="server-footer">
+            WebServ/1.0 - HTTP Server Testing Environment
         </div>
     </div>
 </body>

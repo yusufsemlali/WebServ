@@ -12,7 +12,7 @@
 #include <sstream>
 
 #include "RequestHandler.hpp"
-#include "utiles.hpp"
+#include "Utiles.hpp"
 
 ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler)
     : socketFd(socketFd),
@@ -122,6 +122,8 @@ void ClientConnection::close()
         {
             std::cerr << "Failed to close socket: " << strerror(errno) << std::endl;
         }
+
+        std::cout << "closed connection " << socketFd << std::endl;
         socketFd = -1;
     }
     connected = false;
@@ -306,21 +308,21 @@ void ClientConnection::setState(ConnectionState newState)
     updateLastActivity();
 }
 
-// ===== ASYNC OPERATION SUPPORT =====
 
 void ClientConnection::setPendingOperation(AsyncOperation* operation)
 {
-    // Clean up any existing operation
     if (context.pendingOperation) {
         context.pendingOperation->cleanup();
         delete context.pendingOperation;
-    }
-    
+    }    
+
     context.pendingOperation = operation;
     setState(WAITING_ASYNC);
+
 #ifdef VERBOSE_LOGGING
     std::cout << "ClientConnection: Set pending async operation on socket " << socketFd << std::endl;
 #endif
+
 }
 
 void ClientConnection::completePendingOperation()

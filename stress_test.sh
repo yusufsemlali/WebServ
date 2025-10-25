@@ -28,10 +28,10 @@ print_error() {
 test_concurrent_load() {
     print_header "Test 1: Concurrent Connections (100 requests)"
     
-    print_info "Sending 100 concurrent GET requests..."
+    print_info "Sending 10000 concurrent GET requests..."
     start_time=$(date +%s)
     
-    for i in {1..100}; do
+    for i in {1..10000}; do
         curl -s "$BASE_URL/" > /dev/null &
     done
     

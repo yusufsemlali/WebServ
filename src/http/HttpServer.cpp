@@ -38,8 +38,9 @@ void HttpServer::run()
     std::cout << "HTTP Server started successfully" << std::endl;
     running = true;
 
-    static const int MAX_EVENTS = 64;
-    static const int TIMEOUT_MS = 1000;
+    static const int MAX_EVENTS = 40000;
+    static const int TIMEOUT_MS = 5000;
+    int meter_number_of_accepted_connections = 0;
 
     while (running)
     {
@@ -63,10 +64,11 @@ void HttpServer::run()
             if (isServerSocket(fd))
             {
                 handleNewConnection(fd);
+                meter_number_of_accepted_connections++;
+                std::cout << "Accepted connection " << meter_number_of_accepted_connections << std::endl;
             }
             else if (isCgiSocket(fd))
             {
-                // Handle CGI events
                 if (events[i].events & (EPOLLERR | EPOLLHUP))
                 {
                     handleCgiError(fd);
@@ -78,7 +80,6 @@ void HttpServer::run()
             }
             else
             {
-                // Handle client events
                 if (events[i].events & (EPOLLERR | EPOLLHUP))
                 {
                     handleClientError(fd);
@@ -87,7 +88,7 @@ void HttpServer::run()
                 {
                     if (events[i].events & EPOLLIN)
                     {
-                        handleClientRead(fd);
+                        handleClientRead(fd); 
                     }
                     if (events[i].events & EPOLLOUT)
                     {
