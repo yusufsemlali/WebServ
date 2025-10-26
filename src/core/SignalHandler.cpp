@@ -2,7 +2,7 @@
 #include <cstdlib>
 #include <iostream>
 
-#include "core.hpp"
+#include "Core.hpp"
 
 HttpServer *g_server = NULL;
 

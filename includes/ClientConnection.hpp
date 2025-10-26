@@ -50,6 +50,7 @@ class ClientConnection
     int getServerFd() const;
 
     // Request/Response handling
+    bool hasCompleteHeaders() const;
     bool hasCompleteRequest() const;
     HttpRequest &getCurrentRequest();
     HttpResponse &getCurrentResponse();
@@ -102,6 +103,7 @@ class ClientConnection
 
     bool connected;
     bool keepAlive;
+    bool headersValidated;  // Track if early validation completed
     time_t lastActivity;
 
     size_t bytesRead;
@@ -116,4 +118,5 @@ class ClientConnection
     std::string getContentType(const std::string &filePath);
     void serve404();
     void parseCgiOutput(const std::string& output);  // Parse CGI output into headers/body
+    void rejectRequestEarly(int errorCode);  // Reject request before reading body
 };

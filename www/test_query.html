@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Query Parameter Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-left: 4px solid #28a745;
+            border-radius: 4px;
+        }
+        .test-url {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 10px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            display: none;
+        }
+        code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #e83e8c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Query Parameter Test Page</h1>
+        
+        <div class="test-section">
+            <h3>Test 1: Simple Parameters</h3>
+            <div class="test-url">
+                /test_query.html?name=John&age=25&city=NYC
+            </div>
+            <button onclick="testQuery('?name=John&age=25&city=NYC')">Test This</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 2: URL-Encoded Values</h3>
+            <div class="test-url">
+                /test_query.html?name=John%20Doe&city=New%20York
+            </div>
+            <button onclick="testQuery('?name=John%20Doe&city=New%20York')">Test This</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 3: Plus Sign Encoding</h3>
+            <div class="test-url">
+                /test_query.html?search=hello+world&lang=c++
+            </div>
+            <button onclick="testQuery('?search=hello+world&lang=c++')">Test This</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 4: Empty Values</h3>
+            <div class="test-url">
+                /test_query.html?key1=&key2=value&key3
+            </div>
+            <button onclick="testQuery('?key1=&key2=value&key3')">Test This</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Test 5: Special Characters</h3>
+            <div class="test-url">
+                /test_query.html?email=user%40example.com&tag=%23webserv
+            </div>
+            <button onclick="testQuery('?email=user%40example.com&tag=%23webserv')">Test This</button>
+        </div>
+
+        <div id="result" class="result"></div>
+
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;">
+            <h3>📚 Current Page Query Parameters:</h3>
+            <div id="currentParams" style="font-family: monospace; background: #f8f9fa; padding: 15px; border-radius: 4px;">
+                <script>
+                    const urlParams = new URLSearchParams(window.location.search);
+                    let output = '';
+                    if (urlParams.toString()) {
+                        urlParams.forEach((value, key) => {
+                            output += `<strong>${key}</strong> = "${value}"<br>`;
+                        });
+                    } else {
+                        output = '<em style="color: #6c757d;">No query parameters in current URL</em>';
+                    }
+                    document.write(output);
+                </script>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function testQuery(queryString) {
+            window.location.href = '/test_query.html' + queryString;
+        }
+
+        // Show result if there are query params
+        window.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.toString()) {
+                const resultDiv = document.getElementById('result');
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = '<strong>✅ Query parameters detected!</strong><br>Check the "Current Page Query Parameters" section below to see how the server parsed them.';
+            }
+        });
+    </script>
+</body>
+</html>

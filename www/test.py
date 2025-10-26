@@ -10,6 +10,8 @@ post_data = sys.stdin.read(content_length) if content_length > 0 else ""
 print("Content-Type: text/html\r")
 print("\r")
 print("<html><body>")
+while True:
+    print("<p>Waiting for request...</p>")
 print(f"<h1>POST Request Received</h1>")
 print(f"<p><strong>Content-Length:</strong> {content_length}</p>")
 print(f"<p><strong>Content-Type:</strong> {os.environ.get('CONTENT_TYPE', 'not set')}</p>")

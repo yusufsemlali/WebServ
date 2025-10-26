@@ -1,6 +1,5 @@
 #include <csignal>
 #include <iostream>
-#include <stdexcept>
 
 #include "Core.hpp"
 #ifdef DEBUG

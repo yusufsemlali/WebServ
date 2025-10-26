@@ -20,6 +20,7 @@ ClientConnection::ClientConnection(int socketFd, const struct sockaddr_in &clien
       handleRequest(handler),
       connected(true),
       keepAlive(false),
+      headersValidated(false),
       lastActivity(time(NULL)),
       bytesRead(0),
       bytesWritten(0),
@@ -65,7 +66,6 @@ bool ClientConnection::readData()
     updateLastActivity();
 
 #ifdef VERBOSE_LOGGING
-    // ADDED: Print raw request data as it comes in
     std::cout << "=== RAW REQUEST DATA RECEIVED ===" << std::endl;
     std::cout << readBuffer << std::endl;
     std::cout << "=== END RAW REQUEST DATA ===" << std::endl;
@@ -144,19 +144,21 @@ int ClientConnection::getServerFd() const
     return serverFd;
 }
 
+bool ClientConnection::hasCompleteHeaders() const
+{
+    return readBuffer.find("\r\n\r\n") != std::string::npos;
+}
+
 bool ClientConnection::hasCompleteRequest() const
 {
-    // Check for complete HTTP headers (ends with \r\n\r\n)
     size_t headerEnd = readBuffer.find("\r\n\r\n");
     if (headerEnd == std::string::npos)
         return false;
     
-    // For POST/PUT requests, check if we have the complete body based on Content-Length
     size_t contentLengthPos = readBuffer.find("Content-Length:");
     if (contentLengthPos != std::string::npos && contentLengthPos < headerEnd)
     {
-        // Extract Content-Length value
-        size_t valueStart = contentLengthPos + 15; // Length of "Content-Length:"
+        size_t valueStart = contentLengthPos + 15; 
         while (valueStart < headerEnd && (readBuffer[valueStart] == ' ' || readBuffer[valueStart] == '\t'))
             valueStart++;
         
@@ -166,11 +168,9 @@ bool ClientConnection::hasCompleteRequest() const
             std::string contentLengthStr = readBuffer.substr(valueStart, valueEnd - valueStart);
             size_t contentLength = static_cast<size_t>(atoi(contentLengthStr.c_str()));
             
-            // Calculate actual body length
-            size_t bodyStart = headerEnd + 4; // After \r\n\r\n
+            size_t bodyStart = headerEnd + 4; 
             size_t bodyLength = readBuffer.length() - bodyStart;
             
-            // Check if we have received the complete body
             if (bodyLength < contentLength)
                 return false;
         }
@@ -234,6 +234,7 @@ void ClientConnection::clearBuffers()
     readBuffer.clear();
     writeBuffer.clear();
     writeOffset = 0;
+    headersValidated = false;  // Reset validation flag for next request
 }
 
 size_t ClientConnection::getBytesRead() const
@@ -248,11 +249,42 @@ size_t ClientConnection::getBytesWritten() const
 
 bool ClientConnection::processReadBuffer()
 {
+    if (!hasCompleteHeaders())
+    {
+        return false;
+    }
+    
+    if (!headersValidated)
+    {
+        HttpRequest tempRequest;
+        
+        if (!tempRequest.parseHeadersOnly(readBuffer))
+        {
+            std::cerr << "Failed to parse request headers" << std::endl;
+            rejectRequestEarly(400);
+            return true;
+        }
+        
+        int errorCode = handleRequest.validateRequestEarly(tempRequest, serverFd);
+        if (errorCode != 0)
+        {
+            // Request rejected (405 Method Not Allowed or 413 Payload Too Large)
+            std::cout << "Request rejected early with error " << errorCode << std::endl;
+            rejectRequestEarly(errorCode);
+            return true;
+        }
+        
+        // Validation passed, mark as validated
+        headersValidated = true;
+    }
+    
+    // Step 3: Now wait for complete request (including body if needed)
     if (!hasCompleteRequest())
     {
         return false;
     }
 
+    // Step 4: Full parse and process
     if (context.request.parseRequest(readBuffer))
     {
         context.response.reset();
@@ -308,6 +340,27 @@ void ClientConnection::setState(ConnectionState newState)
     updateLastActivity();
 }
 
+void ClientConnection::rejectRequestEarly(int errorCode)
+{
+    // Generate error response without reading body
+    context.response.reset();
+    handleRequest.generateErrorPage(errorCode, context.response, serverFd);
+    
+    writeBuffer = context.response.toString();
+    writeOffset = 0;
+    setState(WRITING_RESPONSE);
+    
+    // CRITICAL: Clear read buffer to discard any unread body data
+    readBuffer.clear();
+    
+    // Reset validation flag for next request (if keep-alive)
+    headersValidated = false;
+    
+#ifdef VERBOSE_LOGGING
+    std::cout << "Request rejected early with error " << errorCode 
+              << ", discarding any unread body" << std::endl;
+#endif
+}
 
 void ClientConnection::setPendingOperation(AsyncOperation* operation)
 {

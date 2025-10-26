@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Upload Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .upload-container {
+            max-width: 800px;
+            width: 90%;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .page-title {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #007bff;
+            margin: 0 0 10px 0;
+            text-align: center;
+        }
+        .page-subtitle {
+            font-size: 1rem;
+            color: #6c757d;
+            margin: 0 0 30px 0;
+            text-align: center;
+        }
+        .upload-section {
+            background-color: #e7f3ff;
+            padding: 30px;
+            border-radius: 8px;
+            border: 2px dashed #007bff;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        .upload-section h2 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+        input[type="file"] {
+            opacity: 0;
+            position: absolute;
+            z-index: -1;
+        }
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #6c757d;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .file-input-label:hover {
+            background-color: #5a6268;
+        }
+        .file-name {
+            display: block;
+            margin-top: 10px;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .upload-button {
+            padding: 12px 30px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        .upload-button:hover {
+            background-color: #218838;
+        }
+        .upload-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .files-section {
+            margin-top: 30px;
+        }
+        .files-section h2 {
+            color: #343a40;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+        }
+        .file-item {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            border-left: 4px solid #007bff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .file-info {
+            flex-grow: 1;
+        }
+        .file-name-display {
+            font-weight: bold;
+            color: #343a40;
+            margin-bottom: 5px;
+        }
+        .file-meta {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .file-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .action-button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+        .download-button {
+            background-color: #007bff;
+            color: white;
+        }
+        .download-button:hover {
+            background-color: #0056b3;
+        }
+        .delete-button {
+            background-color: #dc3545;
+            color: white;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+        .info-box {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+            text-align: left;
+        }
+        .server-info {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #6c757d;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s;
+        }
+        .back-link:hover {
+            background-color: #5a6268;
+        }
+    </style>
+    <script>
+        // ====== UPLOAD SIZE CONFIGURATION ======
+        // Dynamically loaded from server via X-Upload-Max-Size header
+        let maxUploadSizeBytes = 4000000;  // Default 4MB (fallback)
+        let maxUploadSizeFormatted = '4.0 MB';
+        // ========================================
+
+        function formatBytes(bytes) {
+            if (bytes >= 1000000) {
+                return (bytes / 1000000).toFixed(1) + ' MB';
+            } else if (bytes >= 1000) {
+                return (bytes / 1000).toFixed(1) + ' KB';
+            } else {
+                return bytes + ' bytes';
+            }
+        }
+
+        function loadUploadConfig() {
+            // Fetch a file from /uploads to get that location's config
+            fetch('/uploads/info.py')
+            .then(response => {
+                const maxSize = response.headers.get('X-Upload-Max-Size');
+                if (maxSize) {
+                    maxUploadSizeBytes = parseInt(maxSize);
+                    maxUploadSizeFormatted = formatBytes(maxUploadSizeBytes);
+                    
+                    // Update UI
+                    const infoText = document.getElementById('maxSizeInfo');
+                    if (infoText) {
+                        infoText.textContent = maxUploadSizeFormatted;
+                    }
+                    
+                    updateCurlExample();
+                }
+            })
+            .catch(error => {
+                console.warn('Could not load upload config from headers, using defaults:', error);
+            });
+        }
+
+        function updateCurlExample() {
+            const curlCmd = document.getElementById('curlCommand');
+            if (curlCmd) {
+                const host = window.location.host || 'localhost:1025';
+                curlCmd.innerHTML = `curl -X POST http://${host}/uploads \\<br>
+                -F "file=@/path/to/your/file.txt"<br>
+                <span style="color: #6c757d; font-size: 0.85rem;"># Max size: ${maxUploadSizeFormatted}</span>`;
+            }
+        }
+
+        function showMessage(message, isError = false) {
+            const messageBox = document.getElementById('uploadMessage');
+            messageBox.textContent = message;
+            messageBox.style.display = 'block';
+            messageBox.style.backgroundColor = isError ? '#f8d7da' : '#d4edda';
+            messageBox.style.color = isError ? '#721c24' : '#155724';
+            messageBox.style.borderLeft = isError ? '4px solid #dc3545' : '4px solid #28a745';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, 5000);
+        }
+
+        function updateFileName() {
+            const input = document.getElementById('fileInput');
+            const display = document.getElementById('fileName');
+            const button = document.getElementById('uploadButton');
+            
+            if (input.files.length > 0) {
+                const file = input.files[0];
+                const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                display.textContent = 'Selected: ' + file.name + ' (' + fileSizeMB + ' MB)';
+                
+                // Show warning but allow upload for testing
+                if (file.size > maxUploadSizeBytes) {
+                    display.textContent += ' - ⚠️ Exceeds limit (' + maxUploadSizeFormatted + ') - Upload to test server response';
+                    display.style.color = '#ff8c00';
+                } else {
+                    display.style.color = '#28a745';
+                }
+                button.disabled = false;
+            } else {
+                display.textContent = 'No file selected';
+                display.style.color = '#6c757d';
+                button.disabled = true;
+            }
+        }
+
+        function handleUpload(event) {
+            event.preventDefault();
+            
+            const form = event.target;
+            const fileInput = document.getElementById('fileInput');
+            const button = document.getElementById('uploadButton');
+            const fileName = document.getElementById('fileName');
+            
+            if (!fileInput.files.length) {
+                showMessage('⚠️ Please select a file to upload', true);
+                return;
+            }
+            
+            const formData = new FormData(form);
+            const originalFileName = fileInput.files[0].name;
+            
+            // Disable button and show uploading state
+            button.disabled = true;
+            button.textContent = '⏳ Uploading...';
+            
+            fetch('/uploads', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                return response.text().then(html => ({
+                    status: response.status,
+                    ok: response.ok,
+                    html: html
+                }));
+            })
+            .then(result => {
+                if (!result.ok) {
+                    // Server sent error page HTML - display it
+                    document.open();
+                    document.write(result.html);
+                    document.close();
+                    return;
+                }
+                
+                // Success
+                showMessage('✅ File uploaded successfully: ' + originalFileName);
+                
+                // Reset form
+                form.reset();
+                fileName.textContent = 'No file selected';
+                fileName.style.color = '#6c757d';
+                button.textContent = '⬆️ Upload File';
+                
+                // Reload file list
+                setTimeout(() => {
+                    loadUploadedFiles();
+                }, 500);
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                showMessage('❌ Network error: ' + error.message, true);
+                button.disabled = false;
+                button.textContent = '⬆️ Upload File';
+            });
+        }
+
+        function deleteFile(filename) {
+            if (!confirm('Are you sure you want to delete "' + filename + '"?')) {
+                return false;
+            }
+            
+            fetch('/uploads/' + filename, {
+                method: 'DELETE'
+            })
+            .then(response => {
+                return response.text().then(html => ({
+                    status: response.status,
+                    ok: response.ok,
+                    html: html
+                }));
+            })
+            .then(result => {
+                if (result.ok) {
+                    showMessage('✅ File deleted successfully: ' + filename);
+                    loadUploadedFiles();
+                } else {
+                    // Server sent error page HTML - display it
+                    document.open();
+                    document.write(result.html);
+                    document.close();
+                }
+            })
+            .catch(error => {
+                console.error('Delete error:', error);
+                showMessage('❌ Network error: ' + error.message, true);
+            });
+            
+            return false;
+        }
+
+        function loadUploadedFiles() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = '<p style="margin: 0; color: #6c757d;">⏳ Loading files...</p>';
+            
+            fetch('/uploads/')
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                const rows = doc.querySelectorAll('table tr');
+                
+                const files = [];
+                rows.forEach((row, index) => {
+                    if (index === 0) return; // Skip header
+                    const cells = row.querySelectorAll('td');
+                    if (cells.length >= 3) {
+                        const link = cells[0].querySelector('a');
+                        if (link) {
+                            const filename = link.textContent.trim();
+                            const size = cells[1].textContent.trim();
+                            const type = cells[2].textContent.trim();
+                            
+                            // Skip index.html and info.py
+                            if (filename !== 'index.html' && filename !== 'info.py') {
+                                files.push({ filename, size, type });
+                            }
+                        }
+                    }
+                });
+                
+                if (files.length === 0) {
+                    fileList.innerHTML = '<p style="margin: 0; font-size: 1.1rem;">🗂️</p><p style="margin: 10px 0 0 0;">No files uploaded yet. Upload files above to see them here.</p>';
+                } else {
+                    let html = '<ul class="file-list" style="list-style: none; padding: 0; margin: 0;">';
+                    files.forEach(file => {
+                        html += `
+                            <li class="file-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; margin-bottom: 10px; background-color: white; border-radius: 4px; border-left: 4px solid #28a745;">
+                                <div class="file-info">
+                                    <div style="font-weight: bold; color: #343a40; margin-bottom: 5px;">${file.filename}</div>
+                                    <div style="font-size: 0.85rem; color: #6c757d;">Size: ${file.size} | Type: ${file.type}</div>
+                                </div>
+                                <div class="file-actions">
+                                    <a href="/uploads/${file.filename}" class="action-button download-button" download style="display: inline-block; padding: 8px 12px; margin-right: 5px; background-color: #28a745; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem;">
+                                        ⬇️ Download
+                                    </a>
+                                    <button class="action-button delete-button" onclick="deleteFile('${file.filename}')" style="padding: 8px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                                        🗑️ Delete
+                                    </button>
+                                </div>
+                            </li>
+                        `;
+                    });
+                    html += '</ul>';
+                    fileList.innerHTML = html;
+                }
+            })
+            .catch(error => {
+                fileList.innerHTML = '<p style="margin: 0; color: #dc3545;">⚠️ Error loading files: ' + error.message + '</p>';
+            });
+        }
+
+        // Load config, files, and cURL example when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            loadUploadConfig();
+            loadUploadedFiles();
+        });
+    </script>
+</head>
+<body>
+    <div class="upload-container">
+        <div class="page-title">📁 File Upload Manager</div>
+        <div class="page-subtitle">Upload and manage your files</div>
+        
+        <!-- Upload Message -->
+        <div id="uploadMessage" style="display: none; padding: 15px; border-radius: 4px; margin-bottom: 20px; font-weight: 500;"></div>
+        
+        <!-- Upload Section -->
+        <div class="upload-section">
+            <h2>Upload New File</h2>
+            <form id="uploadForm" method="POST" enctype="multipart/form-data" action="/uploads" onsubmit="handleUpload(event)">
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" name="file" onchange="updateFileName()" required>
+                    <label for="fileInput" class="file-input-label">📎 Choose File</label>
+                </div>
+                <span id="fileName" class="file-name">No file selected</span>
+                <br>
+                <button type="submit" id="uploadButton" class="upload-button" disabled>
+                    ⬆️ Upload File
+                </button>
+            </form>
+        </div>
+
+        <div class="info-box">
+            <strong>ℹ️ Information:</strong><br>
+            • Maximum file size: <strong id="maxSizeInfo">4 MB</strong><br>
+            • All file types are supported<br>
+            • Files uploaded via standard HTTP POST<br>
+            • Delete operations use HTTP DELETE method
+        </div>
+
+        <div class="info-box" style="background-color: #e7f3ff; border-left-color: #007bff;">
+            <strong>🖥️ cURL Example:</strong><br>
+            <code id="curlCommand" style="display: block; margin-top: 10px; padding: 10px; background-color: #f8f9fa; border-radius: 4px; font-family: monospace; font-size: 0.9rem; color: #212529;">
+                curl -X POST http://localhost:1025/uploads \<br>
+                -F "file=@/path/to/your/file.txt"
+            </code>
+        </div>
+
+        <!-- Files List Section -->
+        <div class="files-section">
+            <h2>📂 Uploaded Files</h2>
+            <div id="fileList" style="text-align: center; padding: 30px; background-color: #f8f9fa; border-radius: 4px; color: #6c757d;">
+                <p style="margin: 0; font-size: 1.1rem;">🗂️</p>
+                <p style="margin: 10px 0 0 0;">Loading files...</p>
+            </div>
+        </div>
+
+        <div style="text-align: center;">
+            <a href="/" class="back-link">← Back to Home</a>
+        </div>
+
+        <div class="server-info">
+            WebServ/1.0 - HTTP Server | File Upload Manager
+        </div>
+    </div>
+</body>
+</html>

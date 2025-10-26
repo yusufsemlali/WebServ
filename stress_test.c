@@ -11,7 +11,7 @@
 #include <time.h>
 #include <signal.h>
 
-#define SERVER_HOST "127.0.0.1"
+#define SERVER_HOST "10.11.13.11"
 #define SERVER_PORT 1025
 #define MAX_EVENTS 1024
 #define BUFFER_SIZE 4096

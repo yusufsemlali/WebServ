@@ -5,7 +5,7 @@ CXXFLAGS ?= -Wall -Wextra -Werror -std=c++98 -ggdb
 INCLUDES = -I../../includes/
 
 # Source files
-SRCS = debug.cpp
+SRCS = Debug.cpp
 OBJS = $(SRCS:.cpp=.o)
 DEPS = $(SRCS:.cpp=.d)
 

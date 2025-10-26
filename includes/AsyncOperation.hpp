@@ -18,6 +18,7 @@ public:
     virtual void handleData() = 0;
     
     virtual bool hasError() const = 0;
+
     virtual std::string getError() const = 0;
     
     virtual void cleanup() = 0;

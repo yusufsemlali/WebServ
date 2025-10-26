@@ -21,8 +21,7 @@ HttpServer::~HttpServer()
 {
     for (std::map<int, ClientConnection*>::iterator it = connections.begin(); it != connections.end(); ++it)
     {
-        socketManager.closeConnection(it->first);
-        delete it->second;
+        delete it->second;  
     }
     connections.clear();
     socketManager.closeAllSockets();
@@ -40,7 +39,7 @@ void HttpServer::run()
 
     static const int MAX_EVENTS = 40000;
     static const int TIMEOUT_MS = 5000;
-    int meter_number_of_accepted_connections = 0;
+
 
     while (running)
     {
@@ -54,6 +53,9 @@ void HttpServer::run()
             break;
         }
 
+        // Check for timed-out CGI operations
+        checkCgiTimeouts();
+        
         for (int i = 0; i < eventCount; ++i)
         {
             int fd = events[i].data.fd;
@@ -64,8 +66,6 @@ void HttpServer::run()
             if (isServerSocket(fd))
             {
                 handleNewConnection(fd);
-                meter_number_of_accepted_connections++;
-                std::cout << "Accepted connection " << meter_number_of_accepted_connections << std::endl;
             }
             else if (isCgiSocket(fd))
             {
@@ -89,6 +89,8 @@ void HttpServer::run()
                     if (events[i].events & EPOLLIN)
                     {
                         handleClientRead(fd); 
+                        if (connections.find(fd) == connections.end())
+                            continue;
                     }
                     if (events[i].events & EPOLLOUT)
                     {
@@ -343,6 +345,63 @@ void HttpServer::handleCgiError(int cgiFd)
         if (conn->canWrite())
         {
             eventLoop.modify(conn->getSocketFd(), EPOLLIN | EPOLLOUT);
+        }
+    }
+}
+
+void HttpServer::checkCgiTimeouts()
+{
+    static const int CGI_TIMEOUT_SECONDS = 30;
+    
+    std::vector<int> timedOutCgiFds;
+    
+    // Find all timed-out CGI operations
+    for (std::map<int, ClientConnection*>::iterator it = cgiConnections.begin(); 
+         it != cgiConnections.end(); ++it)
+    {
+        ClientConnection* conn = it->second;
+        
+        if (conn->hasPendingOperation())
+        {
+            if (conn->isTimedOut(CGI_TIMEOUT_SECONDS))
+            {
+                std::cerr << "CGI timeout detected for FD " << it->first << " after " 
+                          << CGI_TIMEOUT_SECONDS << " seconds" << std::endl;
+                timedOutCgiFds.push_back(it->first);
+            }
+        }
+    }
+    
+    // Handle timed-out CGI operations
+    for (size_t i = 0; i < timedOutCgiFds.size(); ++i)
+    {
+        int cgiFd = timedOutCgiFds[i];
+        std::map<int, ClientConnection*>::iterator it = cgiConnections.find(cgiFd);
+        
+        if (it != cgiConnections.end())
+        {
+            ClientConnection* conn = it->second;
+            AsyncOperation* op = conn->getPendingOperation();
+            
+            if (op)
+            {
+                CgiOperation* cgiOp = dynamic_cast<CgiOperation*>(op);
+                if (cgiOp && !op->isComplete())
+                {
+                    std::cout << "Forcing CGI completion due to timeout" << std::endl;
+                    cgiOp->forceCompletion();
+                }
+            }
+            
+            conn->completePendingOperation();
+            
+            eventLoop.remove(cgiFd);
+            cgiConnections.erase(it);
+            
+            if (conn->canWrite())
+            {
+                eventLoop.modify(conn->getSocketFd(), EPOLLIN | EPOLLOUT);
+            }
         }
     }
 }

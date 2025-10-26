@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <cstdio>
+#include <cstdlib>
 #include "CgiOperation.hpp"
 #include "ClientConnection.hpp"
 
@@ -21,7 +22,7 @@ RequestHandler::~RequestHandler()
 void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &response, ClientConnection* connection)
 {
     std::string method = request.getMethod();
-    std::string uri = request.getUri();
+    std::string uri = urlDecode(request.getUri());
 
     std::cout << "Processing " << method << " request for " << uri << " from client " << connection->getClientAddress() << std::endl;
 
@@ -42,7 +43,7 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     {
         const Config::LocationConfig &locationConfig = findLocationConfig(serverConfig, uri);
         
-        if (!isMethodAllowed(method, locationConfig))
+        if (!isMethodAllowed(method, locationConfig, serverConfig))
         {
             serveErrorPage(405, response, serverConfig);
             return;
@@ -112,11 +113,46 @@ void RequestHandler::generateErrorPage(int errorCode, HttpResponse &response, in
     }
 }
 
+int RequestHandler::validateRequestEarly(const HttpRequest &request, int serverFd) const
+{
+    try
+    {
+        const Config::ServerConfig &serverConfig = findServerConfig(request, serverFd);
+        const Config::LocationConfig &locationConfig = findLocationConfig(serverConfig, request.getUri());
+        
+        std::string method = request.getMethod();
+        if (!isMethodAllowed(method, locationConfig, serverConfig))
+        {
+
+            return 405;
+        }
+        
+        size_t contentLength = request.getContentLength();
+        if (contentLength > 0)
+        {
+            size_t maxBodySize = locationConfig.clientMaxBodySize > 0 ? 
+                               locationConfig.clientMaxBodySize : serverConfig.clientMaxBodySize;
+            
+            if (maxBodySize > 0 && contentLength > maxBodySize)
+            {
+                return 413;
+            }
+        }
+        
+        return 0;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Exception in early validation: " << e.what() << std::endl;
+        return 500;
+    }
+}
+
 void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse &response, 
                                      const Config::ServerConfig &server, const Config::LocationConfig &location,
                                      ClientConnection* connection)
 {
-    std::string uri = request.getUri();
+    std::string uri = urlDecode(request.getUri());
     std::string filePath = resolveFilePath(uri, location, server);
     
 
@@ -139,7 +175,7 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
 
         if (fileExists(indexPath) && !isDirectory(indexPath))
         {
-            serveStaticFile(indexPath, response);
+            serveStaticFile(indexPath, response, location, server);
         }
         else if (location.autoindex || server.autoindex)
         {
@@ -160,7 +196,7 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
         }     
         if (hasPermission(filePath))
         {
-            serveStaticFile(filePath, response);
+            serveStaticFile(filePath, response, location, server);
         }
         else
         {
@@ -173,7 +209,7 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
                                       const Config::ServerConfig &server, const Config::LocationConfig &location,
                                       ClientConnection* connection)
 {
-    std::string uri = request.getUri();
+    std::string uri = urlDecode(request.getUri());
     
     if (!location.cgiPass.empty())
     {
@@ -231,7 +267,7 @@ void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpRespon
                                         const Config::ServerConfig &server, const Config::LocationConfig &location,
                                         ClientConnection* /* connection */)
 {
-    std::string uri = request.getUri();
+    std::string uri = urlDecode(request.getUri());
     std::string filePath = resolveFilePath(uri, location, server);
     
 
@@ -263,7 +299,8 @@ void RequestHandler::processDeleteRequest(const HttpRequest &request, HttpRespon
     }
 }
 
-void RequestHandler::serveStaticFile(const std::string &filePath, HttpResponse &response)
+void RequestHandler::serveStaticFile(const std::string &filePath, HttpResponse &response,
+                                    const Config::LocationConfig &location, const Config::ServerConfig &server)
 {
     std::ifstream file(filePath.c_str(), std::ios::binary);
     if (!file.is_open())
@@ -281,6 +318,12 @@ void RequestHandler::serveStaticFile(const std::string &filePath, HttpResponse &
     response.setStatus(200, "OK");
     response.setBody(oss.str());
     response.setHeader("Content-Type", mimeType);
+    
+    // Add X-Upload-Max-Size header with current location's client_max_body_size
+    size_t maxSize = location.clientMaxBodySize ? location.clientMaxBodySize : server.clientMaxBodySize;
+    std::ostringstream ss;
+    ss << maxSize;
+    response.setHeader("X-Upload-Max-Size", ss.str());
 }
 
 void RequestHandler::serveDirectoryListing(const std::string &dirPath, HttpResponse &response)
@@ -367,7 +410,10 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
             std::string errorPagePath = server.errorPages[i].filePath;
             if (fileExists(errorPagePath))
             {
-                serveStaticFile(errorPagePath, response);
+                // Create a minimal location config for error pages
+                static Config::LocationConfig errorLoc;
+                errorLoc.clientMaxBodySize = 0;
+                serveStaticFile(errorPagePath, response, errorLoc, server);
                 response.setStatus(errorCode, HttpResponse::getDefaultStatusMessage(errorCode));
                 return;
             }
@@ -395,7 +441,7 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
                                const Config::ServerConfig &server, const Config::LocationConfig &location,
                                ClientConnection* connection)
 {
-    std::string uri = request.getUri();
+    std::string uri = urlDecode(request.getUri());
     std::string scriptPath = resolveFilePath(uri, location, server);
     std::string interpreterPath = location.cgiPass;
     
@@ -577,7 +623,7 @@ std::string RequestHandler::resolveFilePath(const std::string &uri, const Config
 {
     std::string root = location.root.empty() ? server.root : location.root;
     if (root.empty())
-        root = "./www"; // Default document root
+        root = "./www"; 
 
     std::string path = root + uri;
     
@@ -693,17 +739,23 @@ std::string RequestHandler::getMimeType(const std::string &filePath) const
     return mimeType;
 }
 
-bool RequestHandler::isMethodAllowed(const std::string &method, const Config::LocationConfig &location) const
+bool RequestHandler::isMethodAllowed(const std::string &method, const Config::LocationConfig &location, 
+                                     const Config::ServerConfig &server) const
 {
-    
-    if (location.allowedMethods.empty())
+    // If location has explicit methods directive, use it
+    if (!location.allowedMethods.empty())
     {
-        bool allowed = (method == "GET" || method == "POST" || method == "DELETE" || method == "HEAD");
-        return allowed;
+        return location.allowedMethods.find(method) != location.allowedMethods.end();
     }
     
-    bool allowed = location.allowedMethods.find(method) != location.allowedMethods.end();
-    return allowed;
+    // Otherwise, inherit from server-level methods
+    if (!server.allowedMethods.empty())
+    {
+        return server.allowedMethods.find(method) != server.allowedMethods.end();
+    }
+    
+    // Default: only allow safe methods (GET and HEAD) - DO NOT allow POST/DELETE by default
+    return (method == "GET" || method == "HEAD");
 }
 
 bool RequestHandler::isValidRequest(const HttpRequest &request) const
@@ -809,6 +861,58 @@ std::string RequestHandler::toLower(const std::string &str) const
     {
         result[i] = std::tolower(static_cast<unsigned char>(result[i]));
     }
+    return result;
+}
+
+std::string RequestHandler::urlDecode(const std::string &str) const
+{
+    std::string result;
+    result.reserve(str.length());
+    
+    size_t queryStart = str.find('?');
+    bool inQuery = false;
+    
+    for (size_t i = 0; i < str.length(); ++i)
+    {
+        if (queryStart != std::string::npos && i >= queryStart)
+        {
+            inQuery = true;
+        }
+        
+        if (str[i] == '%' && i + 2 < str.length())
+        {
+            char hex[3] = { str[i + 1], str[i + 2], '\0' };
+            char *endptr;
+            long value = strtol(hex, &endptr, 16);
+            
+            if (endptr == hex + 2)
+            {
+                result += static_cast<char>(value);
+                i += 2;
+            }
+            else
+            {
+                result += str[i];
+            }
+        }
+        else if (str[i] == '+' && inQuery)
+        {
+            // Only decode + to space in query strings, not in paths
+            result += ' ';
+        }
+        else
+        {
+            result += str[i];
+        }
+    }
+    
+    // SECURITY: Check for path traversal AFTER decoding
+    if (result.find("..") != std::string::npos)
+    {
+        std::cerr << "Security: Path traversal attempt blocked in decoded URI: " << result << std::endl;
+        return "/";
+    }
+    
     return result;
 }
 

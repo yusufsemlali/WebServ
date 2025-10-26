@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include "parser.hpp"
+#include "Parser.hpp"
 #include "HttpServer.hpp"
 
 // Global server pointer for signal handling

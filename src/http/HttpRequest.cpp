@@ -1,7 +1,8 @@
 #include "HttpRequest.hpp"
-
-#include <iostream>
 #include <sstream>
+#include <iostream>
+#include <algorithm>
+#include <cstdlib>
 
 HttpRequest::HttpRequest()
     : requestComplete(false),
@@ -15,7 +16,6 @@ HttpRequest::~HttpRequest()
 
 bool HttpRequest::parseRequest(const std::string &rawRequest)
 {
-    // Only parse the request - don't validate
     if (!parseRequestLine(rawRequest))
     {
         requestComplete = false;
@@ -38,17 +38,30 @@ bool HttpRequest::parseRequest(const std::string &rawRequest)
     return true;
 }
 
+bool HttpRequest::parseHeadersOnly(const std::string &rawRequest)
+{
+    if (!parseRequestLine(rawRequest))
+    {
+        return false;
+    }
+
+    if (!parseHeaders(rawRequest))
+    {
+        return false;
+    }
+
+    headersParsed = true;
+    return true;
+}
+
 bool HttpRequest::isValidUri() const
 {
-    // Must not be empty and must start with '/'
     if (uri.empty() || uri[0] != '/')
         return false;
 
-    // Disallow directory traversal
     if (uri.find("..") != std::string::npos)
         return false;
 
-    // Disallow spaces and control characters
     for (size_t i = 0; i < uri.size(); ++i)
     {
         if (uri[i] <= 0x1F || uri[i] == 0x7F || uri[i] == ' ')
@@ -70,6 +83,7 @@ void HttpRequest::reset()
     version.clear();
     query.clear();
     headers.clear();
+    queryParams.clear();
     body.clear();
     requestComplete = false;
     headersParsed = false;
@@ -94,6 +108,26 @@ const std::string &HttpRequest::getVersion() const
 const std::string &HttpRequest::getQuery() const
 {
     return query;
+}
+
+std::string HttpRequest::getQueryParam(const std::string &key) const
+{
+    std::map<std::string, std::string>::const_iterator it = queryParams.find(key);
+    if (it != queryParams.end())
+    {
+        return it->second;
+    }
+    return "";
+}
+
+bool HttpRequest::hasQueryParam(const std::string &key) const
+{
+    return queryParams.find(key) != queryParams.end();
+}
+
+const std::map<std::string, std::string> &HttpRequest::getQueryParams() const
+{
+    return queryParams;
 }
 
 const std::map<std::string, std::string> &HttpRequest::getHeaders() const
@@ -150,14 +184,13 @@ bool HttpRequest::isValidVersion() const
 
 bool HttpRequest::parseRequestLine(const std::string &rawRequest)
 {
-    // Find the first line (request line)
     size_t firstLineEnd = rawRequest.find("\r\n");
     if (firstLineEnd == std::string::npos)
     {
         firstLineEnd = rawRequest.find("\n");
         if (firstLineEnd == std::string::npos)
         {
-            return false;  // No line ending found
+            return false;
         }
     }
 
@@ -167,13 +200,12 @@ bool HttpRequest::parseRequestLine(const std::string &rawRequest)
 
     if (!(iss >> method >> fullUri >> version))
     {
-        return false;  // Failed to parse request line
+        return false;
     }
 
     this->method = method;
     this->version = version;
 
-    // Parse URI and query string
     parseUri(fullUri);
 
     return true;
@@ -181,7 +213,6 @@ bool HttpRequest::parseRequestLine(const std::string &rawRequest)
 
 bool HttpRequest::parseHeaders(const std::string &rawRequest)
 {
-    // Find start of headers (after request line)
     size_t headerStart = rawRequest.find("\r\n");
     if (headerStart == std::string::npos)
     {
@@ -197,27 +228,23 @@ bool HttpRequest::parseHeaders(const std::string &rawRequest)
         headerStart += 2;
     }
 
-    // Find end of headers (empty line)
     size_t headerEnd = rawRequest.find("\r\n\r\n", headerStart);
     if (headerEnd == std::string::npos)
     {
         headerEnd = rawRequest.find("\n\n", headerStart);
         if (headerEnd == std::string::npos)
         {
-            // No body separator found - headers go to end
             headerEnd = rawRequest.length();
         }
     }
 
     std::string headerSection = rawRequest.substr(headerStart, headerEnd - headerStart);
 
-    // Parse individual headers
     std::istringstream headerStream(headerSection);
     std::string line;
 
     while (std::getline(headerStream, line))
     {
-        // Remove \r if present
         if (!line.empty() && line[line.length() - 1] == '\r')
         {
             line.erase(line.length() - 1);
@@ -238,22 +265,20 @@ bool HttpRequest::parseHeaders(const std::string &rawRequest)
 
 bool HttpRequest::parseBody(const std::string &rawRequest)
 {
-    // Find body start (after headers)
     size_t bodyStart = rawRequest.find("\r\n\r\n");
     if (bodyStart != std::string::npos)
     {
-        bodyStart += 4;  // Skip \r\n\r\n
+        bodyStart += 4;
     }
     else
     {
         bodyStart = rawRequest.find("\n\n");
         if (bodyStart != std::string::npos)
         {
-            bodyStart += 2;  // Skip \n\n
+            bodyStart += 2;
         }
         else
         {
-            // No body separator found - no body
             body.clear();
             return true;
         }
@@ -261,7 +286,6 @@ bool HttpRequest::parseBody(const std::string &rawRequest)
 
     if (bodyStart < rawRequest.length())
     {
-        // Only read Content-Length bytes if specified
         size_t contentLength = getContentLength();
         if (contentLength > 0)
         {
@@ -318,18 +342,94 @@ bool HttpRequest::parseHeader(const std::string &line)
 
 void HttpRequest::parseUri(const std::string &fullUri)
 {
-    // Split URI and query string
     size_t queryPos = fullUri.find('?');
     if (queryPos != std::string::npos)
     {
         uri = fullUri.substr(0, queryPos);
         query = fullUri.substr(queryPos + 1);
+        parseQueryString(query);
     }
     else
     {
         uri = fullUri;
         query.clear();
+        queryParams.clear();
     }
+}
+
+void HttpRequest::parseQueryString(const std::string &queryString)
+{
+    queryParams.clear();
+    
+    if (queryString.empty())
+    {
+        return;
+    }
+    
+    size_t start = 0;
+    size_t end = 0;
+    
+    while (end != std::string::npos)
+    {
+        end = queryString.find('&', start);
+        std::string pair = (end == std::string::npos) ? 
+                          queryString.substr(start) : 
+                          queryString.substr(start, end - start);
+        
+        if (!pair.empty())
+        {
+            size_t equalPos = pair.find('=');
+            if (equalPos != std::string::npos)
+            {
+                std::string key = urlDecodeQuery(pair.substr(0, equalPos));
+                std::string value = urlDecodeQuery(pair.substr(equalPos + 1));
+                queryParams[key] = value;
+            }
+            else
+            {
+                std::string key = urlDecodeQuery(pair);
+                queryParams[key] = "";
+            }
+        }
+        
+        start = (end == std::string::npos) ? end : end + 1;
+    }
+}
+
+std::string HttpRequest::urlDecodeQuery(const std::string &str) const
+{
+    std::string result;
+    result.reserve(str.length());
+    
+    for (size_t i = 0; i < str.length(); ++i)
+    {
+        if (str[i] == '%' && i + 2 < str.length())
+        {
+            char hex[3] = { str[i + 1], str[i + 2], '\0' };
+            char *endptr;
+            long value = strtol(hex, &endptr, 16);
+            
+            if (endptr == hex + 2)
+            {
+                result += static_cast<char>(value);
+                i += 2;
+            }
+            else
+            {
+                result += str[i];
+            }
+        }
+        else if (str[i] == '+')
+        {
+            result += ' ';
+        }
+        else
+        {
+            result += str[i];
+        }
+    }
+    
+    return result;
 }
 
 std::string HttpRequest::toLower(const std::string &str) const
