@@ -1,4 +1,5 @@
 #include "Lexer.hpp"
+#include <set>
 
 static std::set<std::string> initDirectives()
 {

@@ -36,10 +36,6 @@ compile_commands.json
 # Ignore backup files
 *.bak
 
-# Ignore test results
-*.gcda
-*.gcno
-*.gcov
 
 # Ignore final build exec
 webserv
@@ -49,3 +45,5 @@ webserv
 
 
 .cache/
+
+.clang-format

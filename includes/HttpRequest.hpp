@@ -2,7 +2,6 @@
 
 #include <map>
 #include <string>
-#include <vector>
 
 class HttpRequest
 {
@@ -10,13 +9,11 @@ class HttpRequest
 	HttpRequest();
 	~HttpRequest();
 
-	// Request parsing
 	bool parseRequest(const std::string &rawRequest);
-	bool parseHeadersOnly(const std::string &rawRequest);  // Parse only headers (no body)
+	bool parseHeadersOnly(const std::string &rawRequest);
 	bool isComplete() const;
 	void reset();
 
-	// Getters
 	const std::string &getMethod() const;
 	const std::string &getUri() const;
 	const std::string &getVersion() const;
@@ -24,20 +21,15 @@ class HttpRequest
 	const std::map<std::string, std::string> &getHeaders() const;
 	const std::string &getBody() const;
 	
-	// Query parameter operations
 	std::string getQueryParam(const std::string &key) const;
 	bool hasQueryParam(const std::string &key) const;
 	const std::map<std::string, std::string> &getQueryParams() const;
-
-	// Header operations
 	std::string getHeader(const std::string &name) const;
 	bool hasHeader(const std::string &name) const;
 
-	// Content operations
 	size_t getContentLength() const;
 	std::string getContentType() const;
 
-	// Validation
 	bool isValidMethod() const;
 	bool isValidVersion() const;
 	bool isValidUri() const;
@@ -54,7 +46,6 @@ class HttpRequest
 	bool requestComplete;
 	bool headersParsed;
 
-	// Parsing helpers
 	bool parseRequestLine(const std::string &rawRequest);
 	bool parseHeaders(const std::string &rawRequest);
 	bool parseBody(const std::string &rawRequest);

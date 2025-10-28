@@ -1,9 +1,10 @@
 #pragma once
 
-#include <ctime>
+#include <sys/socket.h>
 #include <string>
 
-#include "HttpRequest.hpp"
+#include "AsyncOperation.hpp"
+#include "RequestBodyBuffer.hpp"
 #include "HttpResponse.hpp"
 #include "RequestHandler.hpp"
 #include "AsyncOperation.hpp"
@@ -18,16 +19,13 @@ enum ConnectionState {
     CLOSING              // Connection being closed
 };
 
-// Request processing context
 struct RequestContext {
     HttpRequest request;
     HttpResponse response;
     ConnectionState state;
     
-    // For async operations
     AsyncOperation* pendingOperation;
     
-    // Timing
     time_t startTime;
     time_t lastActivity;
     
@@ -41,7 +39,6 @@ class ClientConnection
     ClientConnection(int socketFd, const struct sockaddr_in &clientAddr, RequestHandler &handler);
     ~ClientConnection();
 
-    // Connection management
     bool readData();
     bool writeData();
     void close();
@@ -49,43 +46,34 @@ class ClientConnection
     void setServerFd(int serverFd);
     int getServerFd() const;
 
-    // Request/Response handling
     bool hasCompleteHeaders() const;
     bool hasCompleteRequest() const;
     HttpRequest &getCurrentRequest();
     HttpResponse &getCurrentResponse();
 
-    // Connection state
     bool isKeepAlive() const;
     void setKeepAlive(bool keepAlive);
     bool isReadyToWrite() const;
     bool isReadyToRead() const;
 
-    // Timeout management
     void updateLastActivity();
     bool isTimedOut(int timeoutSeconds) const;
 
-    // Socket operations
     int getSocketFd() const;
     std::string getClientAddress() const;
 
-    // Buffer management
     void clearBuffers();
-    // Statistics
     size_t getBytesRead() const;
     size_t getBytesWritten() const;
     
-    // State machine management
     ConnectionState getState() const;
     void setState(ConnectionState newState);
     
-    // Async operation support
     void setPendingOperation(AsyncOperation* operation);
     void completePendingOperation();
     bool hasPendingOperation() const;
     AsyncOperation* getPendingOperation() const;
     
-    // State queries for event loop
     bool canRead() const;
     bool canWrite() const;
     bool isReadyForCleanup() const;
@@ -98,12 +86,12 @@ class ClientConnection
     std::string readBuffer;
     std::string writeBuffer;
 
-    RequestContext context;  // Contains request, response, and state
+    RequestContext context;
     RequestHandler &handleRequest;
 
     bool connected;
     bool keepAlive;
-    bool headersValidated;  // Track if early validation completed
+    bool headersValidated;
     time_t lastActivity;
 
     size_t bytesRead;
@@ -111,12 +99,13 @@ class ClientConnection
     size_t writeOffset;
 
     static const size_t MAX_BUFFER_SIZE = 8192;
+    
+    RequestBodyBuffer bodyBuffer;
 
-    // Helper methods
     bool processReadBuffer();
     void serveStaticFile(const std::string &requestPath);
     std::string getContentType(const std::string &filePath);
     void serve404();
-    void parseCgiOutput(const std::string& output);  // Parse CGI output into headers/body
-    void rejectRequestEarly(int errorCode);  // Reject request before reading body
+    void parseCgiOutput(const std::string& output);
+    void rejectRequestEarly(int errorCode);
 };

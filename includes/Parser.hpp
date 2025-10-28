@@ -4,8 +4,7 @@
 #include <vector>
 
 #include "Config.hpp"
-#include "Token.hpp"
-#include "TokenType.hpp"
+#include "Lexer.hpp"
 
 // Entry point function for parsing config files
 Config parse(const std::string &filePath);

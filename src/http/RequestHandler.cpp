@@ -24,7 +24,9 @@ void RequestHandler::handleRequest(const HttpRequest &request, HttpResponse &res
     std::string method = request.getMethod();
     std::string uri = urlDecode(request.getUri());
 
+#ifdef LITE_VERBOSE_LOGGING
     std::cout << "Processing " << method << " request for " << uri << " from client " << connection->getClientAddress() << std::endl;
+#endif
 
     if (!isValidRequest(request))
     {

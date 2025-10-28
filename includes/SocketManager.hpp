@@ -14,19 +14,15 @@ class SocketManager
 				SocketManager();
 				~SocketManager();
 
-				// Server socket management
 				bool createServerSocket(const Config::ListenConfig &listenConfig, const Config::ServerConfig *serverConfig);
 				void closeAllSockets();
 
-				// Client connection management
 				int acceptConnection(int serverFd, struct sockaddr_in& outClientAddr);
 				void closeConnection(int clientFd);
 
-				// Socket operations
 				bool setNonBlocking(int fd);
 				bool bindAndListen(int fd, const std::string &host, const std::string &port);
 
-				// Getters
 				const std::vector<int> &getServerSockets() const;
 				const std::map<int, ClientConnection *> &getClientConnections() const;
 				const std::vector<const Config::ServerConfig *> *getServerConfigs(int serverFd) const;
@@ -37,7 +33,6 @@ class SocketManager
 				std::map<int, std::vector<const Config::ServerConfig *> > serverConfigs;
 				std::map<std::string, int> listenAddressToSocket;
 
-				// Helper methods
 				int createSocket();
 				bool setSocketOptions(int fd);
 				void cleanup();

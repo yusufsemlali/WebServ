@@ -263,7 +263,21 @@ void HttpServer::closeConnection(int clientFd)
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
     if (it != connections.end())
     {
-        delete it->second; 
+        ClientConnection* conn = it->second;
+        
+        for (std::map<int, ClientConnection*>::iterator cgiIt = cgiConnections.begin(); 
+             cgiIt != cgiConnections.end(); ++cgiIt)
+        {
+            if (cgiIt->second == conn)
+            {
+                int cgiFd = cgiIt->first;
+                eventLoop.remove(cgiFd);
+                cgiConnections.erase(cgiIt);
+                break;
+            }
+        }
+        
+        delete conn; 
         connections.erase(it);
     }
 }
@@ -293,6 +307,7 @@ void HttpServer::handleCgiRead(int cgiFd)
     if (it == cgiConnections.end())
     {
         std::cerr << "CGI FD not found in cgiConnections map" << std::endl;
+        eventLoop.remove(cgiFd);
         return;
     }
     
@@ -301,7 +316,9 @@ void HttpServer::handleCgiRead(int cgiFd)
     
     if (!op)
     {
-        std::cerr << "No pending operation for CGI FD: " << cgiFd << std::endl;
+        std::cerr << "No pending operation for CGI FD: " << cgiFd << " - removing from event loop" << std::endl;
+        eventLoop.remove(cgiFd);
+        cgiConnections.erase(it);
         return;
     }
     
@@ -389,7 +406,9 @@ void HttpServer::checkCgiTimeouts()
                 CgiOperation* cgiOp = dynamic_cast<CgiOperation*>(op);
                 if (cgiOp && !op->isComplete())
                 {
+#ifdef LITE_VERBOSE_LOGGING
                     std::cout << "Forcing CGI completion due to timeout" << std::endl;
+#endif
                     cgiOp->forceCompletion();
                 }
             }

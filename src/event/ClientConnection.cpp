@@ -5,6 +5,8 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 
 #include <cctype>
 #include <cstdlib>
@@ -36,6 +38,7 @@ ClientConnection::~ClientConnection()
         delete context.pendingOperation;
         context.pendingOperation = NULL;
     }
+    bodyBuffer.reset();
     close();
 }
 
@@ -44,37 +47,49 @@ bool ClientConnection::readData()
     char buffer[MAX_BUFFER_SIZE];
 
     ssize_t bytesReadNow = recv(socketFd, buffer, sizeof(buffer), 0);
-    // TODO : change so we check for -1 aswell . and not check errno after read
 
-    if (bytesReadNow <= 0)
+    if (bytesReadNow < 0)
     {
-        if (bytesReadNow < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
-        {
-            return true;
-        }
-        if (bytesReadNow < 0)
-        {
-            std::cerr << "Error reading from socket: " << strerror(errno) << std::endl;
-            return false;
-        }
-        // bytesReadNow == 0 means client closed connection
+        return false;
+    }
+    
+    if (bytesReadNow == 0)
+    {
+#ifdef LITE_VERBOSE_LOGGING
         std::cout << "Client closed connection" << std::endl;
+#endif
         return false;
     }
 
-    readBuffer.append(buffer, static_cast<size_t>(bytesReadNow));
     bytesRead += bytesReadNow;
     updateLastActivity();
 
+    if (bodyBuffer.isBufferingToDisk() && headersValidated)
+    {
+        if (!bodyBuffer.writeChunk(buffer, static_cast<size_t>(bytesReadNow)))
+        {
+            return false;
+        }
+        
+        if (processReadBuffer())
+        {
+            readBuffer.clear();
+        }
+    }
+    else
+    {
+        readBuffer.append(buffer, static_cast<size_t>(bytesReadNow));
+
 #ifdef VERBOSE_LOGGING
-    std::cout << "=== RAW REQUEST DATA RECEIVED ===" << std::endl;
-    std::cout << readBuffer << std::endl;
-    std::cout << "=== END RAW REQUEST DATA ===" << std::endl;
+        std::cout << "=== RAW REQUEST DATA RECEIVED ===" << std::endl;
+        std::cout << readBuffer << std::endl;
+        std::cout << "=== END RAW REQUEST DATA ===" << std::endl;
 #endif
 
-    if (processReadBuffer())
-    {
-        readBuffer.clear();
+        if (processReadBuffer())
+        {
+            readBuffer.clear();
+        }
     }
 
     return true;
@@ -89,8 +104,8 @@ bool ClientConnection::writeData()
     }
 
     ssize_t bytesWrittenNow = send(socketFd, writeBuffer.data() + writeOffset, writeBuffer.size() - writeOffset, 0);
-    // TODO : change so we check for 0 aswell . and not check errno after send
-    if (bytesWrittenNow < 0)
+
+    if (bytesWrittenNow <= 0)
     {
         return false;
     }
@@ -99,16 +114,14 @@ bool ClientConnection::writeData()
     writeOffset += bytesWrittenNow;
     updateLastActivity();
 
-    // Check if we've sent everything
     if (writeOffset >= writeBuffer.size())
     {
         writeBuffer.clear();
         writeOffset = 0;
-        return true;  // Complete response sent
+        return true;
     }
 
-
-    return false;  // Partial write, need to continue later
+    return false;
 }
 
 void ClientConnection::close()
@@ -120,7 +133,9 @@ void ClientConnection::close()
             std::cerr << "Failed to close socket: " << strerror(errno) << std::endl;
         }
 
+#ifdef LITE_VERBOSE_LOGGING
         std::cout << "closed connection " << socketFd << std::endl;
+#endif
         socketFd = -1;
     }
     connected = false;
@@ -164,6 +179,11 @@ bool ClientConnection::hasCompleteRequest() const
         {
             std::string contentLengthStr = readBuffer.substr(valueStart, valueEnd - valueStart);
             size_t contentLength = static_cast<size_t>(atoi(contentLengthStr.c_str()));
+            
+            if (bodyBuffer.isBufferingToDisk())
+            {
+                return bodyBuffer.isComplete();
+            }
             
             size_t bodyStart = headerEnd + 4; 
             size_t bodyLength = readBuffer.length() - bodyStart;
@@ -231,7 +251,9 @@ void ClientConnection::clearBuffers()
     readBuffer.clear();
     writeBuffer.clear();
     writeOffset = 0;
-    headersValidated = false;  // Reset validation flag for next request
+    headersValidated = false;   
+    
+    bodyBuffer.reset();
 }
 
 size_t ClientConnection::getBytesRead() const
@@ -265,24 +287,70 @@ bool ClientConnection::processReadBuffer()
         int errorCode = handleRequest.validateRequestEarly(tempRequest, serverFd);
         if (errorCode != 0)
         {
-            // Request rejected (405 Method Not Allowed or 413 Payload Too Large)
+#ifdef LITE_VERBOSE_LOGGING
             std::cout << "Request rejected early with error " << errorCode << std::endl;
+#endif
             rejectRequestEarly(errorCode);
             return true;
         }
         
-        // Validation passed, mark as validated
         headersValidated = true;
+        
+        size_t headerEnd = readBuffer.find("\r\n\r\n");
+        size_t contentLengthPos = readBuffer.find("Content-Length:");
+        if (contentLengthPos != std::string::npos && contentLengthPos < headerEnd)
+        {
+            size_t valueStart = contentLengthPos + 15;
+            while (valueStart < headerEnd && (readBuffer[valueStart] == ' ' || readBuffer[valueStart] == '\t'))
+                valueStart++;
+            
+            size_t valueEnd = readBuffer.find("\r\n", valueStart);
+            if (valueEnd != std::string::npos)
+            {
+                std::string contentLengthStr = readBuffer.substr(valueStart, valueEnd - valueStart);
+                size_t expectedBodySize = static_cast<size_t>(atoi(contentLengthStr.c_str()));
+                
+                // Initialize buffer for this body size
+                if (!bodyBuffer.initialize(expectedBodySize, socketFd))
+                {
+                    rejectRequestEarly(500);
+                    return true;
+                }
+                
+                size_t bodyStart = headerEnd + 4;
+                if (readBuffer.length() > bodyStart)
+                {
+                    size_t bodyInBuffer = readBuffer.length() - bodyStart;
+                    const char* bodyData = readBuffer.c_str() + bodyStart;
+                    
+                    if (!bodyBuffer.writeChunk(bodyData, bodyInBuffer))
+                    {
+                        rejectRequestEarly(500);
+                        return true;
+                    }
+                    
+                    if (bodyBuffer.isBufferingToDisk())
+                    {
+                        readBuffer = readBuffer.substr(0, bodyStart);
+                    }
+                }
+            }
+        }
     }
     
-    // Step 3: Now wait for complete request (including body if needed)
     if (!hasCompleteRequest())
     {
         return false;
     }
 
-    // Step 4: Full parse and process
-    if (context.request.parseRequest(readBuffer))
+    std::string fullRequest = readBuffer;
+    if (bodyBuffer.isBufferingToDisk())
+    {
+        std::string body = bodyBuffer.getBody();
+        fullRequest += body;
+    }
+
+    if (context.request.parseRequest(fullRequest))
     {
         context.response.reset();
         setState(PROCESSING_REQUEST);
@@ -310,7 +378,6 @@ bool ClientConnection::processReadBuffer()
     {
         std::cerr << "Failed to parse request" << std::endl;
         
-        // Use RequestHandler to generate proper 400 error page from config
         context.response.reset();
         handleRequest.generateErrorPage(400, context.response, serverFd);
         
@@ -339,7 +406,6 @@ void ClientConnection::setState(ConnectionState newState)
 
 void ClientConnection::rejectRequestEarly(int errorCode)
 {
-    // Generate error response without reading body
     context.response.reset();
     handleRequest.generateErrorPage(errorCode, context.response, serverFd);
     
@@ -347,10 +413,8 @@ void ClientConnection::rejectRequestEarly(int errorCode)
     writeOffset = 0;
     setState(WRITING_RESPONSE);
     
-    // CRITICAL: Clear read buffer to discard any unread body data
     readBuffer.clear();
     
-    // Reset validation flag for next request (if keep-alive)
     headersValidated = false;
     
 #ifdef VERBOSE_LOGGING

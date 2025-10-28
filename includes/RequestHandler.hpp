@@ -8,7 +8,6 @@
 #include "HttpResponse.hpp"
 #include "SocketManager.hpp"
 
-// Forward declaration to avoid circular dependency
 class ClientConnection;
 
 class RequestHandler

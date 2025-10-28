@@ -263,15 +263,12 @@ bool CgiOperation::setNonBlocking(int fd)
 void CgiOperation::readFromProcess()
 {
     ssize_t bytesRead = read(outputFd, readBuffer, BUFFER_SIZE - 1);
-    // TODO : change so we check for -1 aswell . and not check errno after read
     
     if (bytesRead > 0) {
         readBuffer[bytesRead] = '\0';
         result += std::string(readBuffer, bytesRead);
     } else if (bytesRead == 0) {
-    } else if (errno != EAGAIN && errno != EWOULDBLOCK) {
-        error = true;
-        errorMessage = "Error reading from CGI process";
+        // EOF - CGI closed its output
     }
 }
 
@@ -281,7 +278,6 @@ void CgiOperation::writePostData()
     
     if (!postData.empty() && inputFd >= 0) {
         ssize_t bytesWritten = write(inputFd, postData.c_str(), postData.length());
-        // todo : do not check errno after write or send or recv or read ever ever .
         
         if (bytesWritten > 0) {
             postData.erase(0, bytesWritten);
@@ -290,8 +286,7 @@ void CgiOperation::writePostData()
                 close(inputFd);
                 inputFd = -1;
             }
-        } else if (bytesWritten == -1 && errno != EAGAIN && errno != EWOULDBLOCK) {
-            std::cerr << "CgiOperation: Write error: " << strerror(errno) << std::endl;
+        } else if (bytesWritten <= 0) {
             close(inputFd);
             inputFd = -1;
         }
@@ -314,8 +309,10 @@ bool CgiOperation::checkProcessStatus()
                 errorMessage = "CGI process exited with non-zero status";
             }
         } else if (WIFSIGNALED(status)) {
+#ifdef LITE_VERBOSE_LOGGING
             int signal = WTERMSIG(status);
             std::cout << "CgiOperation: CGI process killed by signal " << signal << std::endl;
+#endif
             error = true;
             errorMessage = "CGI process was terminated by signal";
         }
@@ -339,7 +336,16 @@ void CgiOperation::forceCompletion()
     if (childPid > 0) {
         int status;
         pid_t result = waitpid(childPid, &status, WNOHANG);
-        if (result == childPid) {
+        
+        if (result == 0) {
+#ifdef LITE_VERBOSE_LOGGING
+            std::cout << "Killing CGI process " << childPid << " due to timeout" << std::endl;
+#endif
+            kill(childPid, SIGTERM);
+            waitpid(childPid, &status, 0);
+            error = true;
+            errorMessage = "CGI process killed due to timeout";
+        } else if (result == childPid) {
             if (WIFEXITED(status)) {
                 int exitCode = WEXITSTATUS(status);
                 if (exitCode != 0) {
@@ -348,7 +354,8 @@ void CgiOperation::forceCompletion()
             } else if (WIFSIGNALED(status)) {
                 error = true;
             }
-            childPid = -1;
         }
+        
+        childPid = -1;
     }
 }

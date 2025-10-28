@@ -215,10 +215,82 @@ std::set<std::string> Config::parseMethodsDirective(const std::vector<std::strin
 
 size_t Config::parseClientSizeDirective(const std::string &value)
 {
-        std::istringstream iss(value);
+        if (value.empty())
+        {
+                throwValidationError("client_size", value, "size value cannot be empty");
+        }
+        
+        std::string val = value;
+        size_t multiplier = 1;
+        
+        // Check for suffix (k, m, g - case insensitive)
+        char lastChar = val[val.length() - 1];
+        if (!isdigit(lastChar))
+        {
+                char suffix = tolower(lastChar);
+                if (suffix == 'k')
+                {
+                        multiplier = 1024;  // KB
+                }
+                else if (suffix == 'm')
+                {
+                        multiplier = 1024 * 1024;  // MB
+                }
+                else if (suffix == 'g')
+                {
+                        multiplier = 1024 * 1024 * 1024;  // GB
+                }
+                else if (suffix == 'b' && val.length() > 1)
+                {
+                        // Handle "mb", "kb", "gb" suffixes
+                        char secondLast = tolower(val[val.length() - 2]);
+                        if (secondLast == 'k')
+                        {
+                                multiplier = 1024;
+                                val = val.substr(0, val.length() - 2);
+                        }
+                        else if (secondLast == 'm')
+                        {
+                                multiplier = 1024 * 1024;
+                                val = val.substr(0, val.length() - 2);
+                        }
+                        else if (secondLast == 'g')
+                        {
+                                multiplier = 1024 * 1024 * 1024;
+                                val = val.substr(0, val.length() - 2);
+                        }
+                        else
+                        {
+                                throwValidationError("client_size", value, "invalid size suffix (use k, m, g, kb, mb, or gb)");
+                        }
+                }
+                else
+                {
+                        throwValidationError("client_size", value, "invalid size suffix (use k, m, g, kb, mb, or gb)");
+                }
+                
+                // Remove suffix if it was single character
+                if (multiplier > 1 && val.length() > 1 && !isdigit(val[val.length() - 1]))
+                {
+                        val = val.substr(0, val.length() - 1);
+                }
+        }
+        
+        // Parse the numeric part
+        std::istringstream iss(val);
         size_t size;
-        iss >> size;
-        return size;
+        if (!(iss >> size))
+        {
+                throwValidationError("client_size", value, "size must be a valid number");
+        }
+        
+        // Check for overflow
+        if (size > (size_t)-1 / multiplier)
+        {
+                throwValidationError("client_size", value, "size value too large (overflow)");
+        }
+        
+        return size * multiplier;
 }
 
 bool Config::parseAutoindexDirective(const std::string &value)

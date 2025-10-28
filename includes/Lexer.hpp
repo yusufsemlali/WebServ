@@ -2,10 +2,15 @@
 
 #include <string>
 #include <vector>
-#include <set>
 
-#include "Token.hpp"
 #include "TokenType.hpp"
+
+struct Token
+{
+	TokenType type;
+	std::string lexeme;
+	int line;
+};
 
 class Lexer
 {

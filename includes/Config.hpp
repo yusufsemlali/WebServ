@@ -24,10 +24,8 @@ class Config
     struct LocationConfig
     {
         std::string path;
-        // Raw directives (from parser)
         std::map<std::string, std::vector<std::string> > directives;
 
-        // Parsed/validated data
         std::set<std::string> allowedMethods;
         std::string root;
         std::string index;
@@ -40,11 +38,9 @@ class Config
 
     struct ServerConfig
     {
-        // Raw directives (from parser)
         std::map<std::string, std::vector<std::string> > directives;
         std::vector<LocationConfig> locations;
 
-        // Parsed/validated data
         std::vector<ListenConfig> listenConfigs;
         std::vector<std::string> serverNames;
         std::string root;
@@ -66,7 +62,6 @@ class Config
     void parseServerConfig(ServerConfig &server);
     void parseLocationConfig(LocationConfig &location);
 
-    // Strict validation methods
     void validateDirectiveValues(const std::string &directive, const std::vector<std::string> &values);
     void validateHttpMethods(const std::vector<std::string> &methods);
     void validateListenValue(const std::string &value);
@@ -82,14 +77,12 @@ class Config
     void validateDuplicateListenAddresses(const std::vector<ListenConfig> &listenConfigs);
     void validateLocationRedirects(const ServerConfig &server);
 
-    // Helper parsing methods
     ListenConfig parseListenDirective(const std::string &value);
     std::set<std::string> parseMethodsDirective(const std::vector<std::string> &values);
     size_t parseClientSizeDirective(const std::string &value);
     bool parseAutoindexDirective(const std::string &value);
     std::vector<ErrorPageConfig> parseErrorPageDirective(const std::vector<std::string> &values);
 
-    // Validation helpers
     bool isValidHttpMethod(const std::string &method);
     bool isValidErrorCode(int code);
     bool isValidPort(int port);
@@ -98,6 +91,5 @@ class Config
     bool isValidUrl(const std::string &url);
     bool isValidReturnValue(const std::string &value);
 
-    // Error handling
     void throwValidationError(const std::string &directive, const std::string &value, const std::string &reason);
 };
