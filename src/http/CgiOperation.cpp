@@ -263,6 +263,7 @@ bool CgiOperation::setNonBlocking(int fd)
 void CgiOperation::readFromProcess()
 {
     ssize_t bytesRead = read(outputFd, readBuffer, BUFFER_SIZE - 1);
+    // TODO : change so we check for -1 aswell . and not check errno after read
     
     if (bytesRead > 0) {
         readBuffer[bytesRead] = '\0';
@@ -280,6 +281,7 @@ void CgiOperation::writePostData()
     
     if (!postData.empty() && inputFd >= 0) {
         ssize_t bytesWritten = write(inputFd, postData.c_str(), postData.length());
+        // todo : do not check errno after write or send or recv or read ever ever .
         
         if (bytesWritten > 0) {
             postData.erase(0, bytesWritten);

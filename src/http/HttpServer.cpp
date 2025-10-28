@@ -38,7 +38,7 @@ void HttpServer::run()
     running = true;
 
     static const int MAX_EVENTS = 40000;
-    static const int TIMEOUT_MS = 5000;
+    static const int TIMEOUT_MS = 1000;
 
 
     while (running)
@@ -55,6 +55,7 @@ void HttpServer::run()
 
         // Check for timed-out CGI operations
         checkCgiTimeouts();
+        // handleTimeout();
         
         for (int i = 0; i < eventCount; ++i)
         {
@@ -165,6 +166,7 @@ void HttpServer::handleNewConnection(int serverFd)
 #endif
 
     connections[clientFd] = new ClientConnection(clientFd, clientAddr, requestHandler);
+    // TODO : change this to automatic allocation. 
     
     connections[clientFd]->setServerFd(serverFd);    
 
@@ -351,11 +353,10 @@ void HttpServer::handleCgiError(int cgiFd)
 
 void HttpServer::checkCgiTimeouts()
 {
-    static const int CGI_TIMEOUT_SECONDS = 30;
+    static const int CGI_TIMEOUT_SECONDS = 5;
     
     std::vector<int> timedOutCgiFds;
     
-    // Find all timed-out CGI operations
     for (std::map<int, ClientConnection*>::iterator it = cgiConnections.begin(); 
          it != cgiConnections.end(); ++it)
     {

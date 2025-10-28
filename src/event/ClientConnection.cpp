@@ -44,6 +44,7 @@ bool ClientConnection::readData()
     char buffer[MAX_BUFFER_SIZE];
 
     ssize_t bytesReadNow = recv(socketFd, buffer, sizeof(buffer), 0);
+    // TODO : change so we check for -1 aswell . and not check errno after read
 
     if (bytesReadNow <= 0)
     {
@@ -88,13 +89,9 @@ bool ClientConnection::writeData()
     }
 
     ssize_t bytesWrittenNow = send(socketFd, writeBuffer.data() + writeOffset, writeBuffer.size() - writeOffset, 0);
+    // TODO : change so we check for 0 aswell . and not check errno after send
     if (bytesWrittenNow < 0)
     {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-        {
-            return true;
-        }
-        std::cerr << "Error writing to socket: " << strerror(errno) << std::endl;
         return false;
     }
 
