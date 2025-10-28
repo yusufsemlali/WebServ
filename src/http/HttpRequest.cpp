@@ -311,13 +311,12 @@ bool HttpRequest::parseHeader(const std::string &line)
     size_t colonPos = line.find(':');
     if (colonPos == std::string::npos)
     {
-        return false;  // Invalid header format
+        return false;
     }
 
     std::string name = line.substr(0, colonPos);
     std::string value = line.substr(colonPos + 1);
 
-    // Trim whitespace from value
     size_t valueStart = value.find_first_not_of(" \t");
     if (valueStart != std::string::npos)
     {
@@ -334,7 +333,6 @@ bool HttpRequest::parseHeader(const std::string &line)
         value = value.substr(0, valueEnd + 1);
     }
 
-    // Convert header name to lowercase for case-insensitive lookup
     headers[toLower(name)] = value;
 
     return true;

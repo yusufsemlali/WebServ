@@ -10,7 +10,6 @@ static volatile bool shutdown_in_progress = false;
 
 void signalHandler(int signal)
 {
-  // Prevent multiple signal handling
   if (shutdown_in_progress)
   {
     std::cout << "\nForced shutdown..." << std::endl;
@@ -18,7 +17,7 @@ void signalHandler(int signal)
   }
 
   shutdown_in_progress = true;
-  std::cout << std::endl;  // Add newline after ^C
+  std::cout << std::endl;
 
   switch (signal)
   {
@@ -36,7 +35,6 @@ void signalHandler(int signal)
       break;
   }
 
-  // Safely stop the server if it exists
   if (g_server != NULL)
   {
     std::cout << "Stopping HTTP server..." << std::endl;

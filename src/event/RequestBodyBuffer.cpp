@@ -105,7 +105,6 @@ bool RequestBodyBuffer::writeChunkToDisk(const char* data, size_t size)
 
 bool RequestBodyBuffer::writeChunkToMemory(const char* data, size_t size)
 {
-    // Prevent memory overflow
     if (bytesReceived + size > expectedBodySize)
     {
         std::cerr << "RequestBodyBuffer: Chunk exceeds expected body size" << std::endl;

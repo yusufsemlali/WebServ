@@ -55,11 +55,12 @@ debug: CXXFLAGS += -DDEBUG
 debug: re
 # 	./$(NAME) $(CONFIG_FILE)
 
-verbose: CXXFLAGS += -DVERBOSE_LOGGING
-verbose: re
-
 lite-verbose: CXXFLAGS += -DLITE_VERBOSE_LOGGING
 lite-verbose: re
+
+verbose: CXXFLAGS += -DVERBOSE_LOGGING 
+verbose: CXXFLAGS += -DLITE_VERBOSE_LOGGING
+verbose: re
 
 bonus: CXXFLAGS += -D BONUS
 bonus: $(BONUS_NAME)

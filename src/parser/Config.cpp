@@ -223,7 +223,6 @@ size_t Config::parseClientSizeDirective(const std::string &value)
         std::string val = value;
         size_t multiplier = 1;
         
-        // Check for suffix (k, m, g - case insensitive)
         char lastChar = val[val.length() - 1];
         if (!isdigit(lastChar))
         {

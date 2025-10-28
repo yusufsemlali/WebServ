@@ -211,7 +211,6 @@ void SocketManager::cleanup()
 {
     std::cout << "Cleaning up SocketManager..." << std::endl;
 
-    // Close all server sockets
     for (size_t i = 0; i < serverSockets.size(); ++i)
     {
         if (serverSockets[i] != -1)
@@ -227,12 +226,11 @@ void SocketManager::cleanup()
     serverConfigs.clear();
     listenAddressToSocket.clear();
 
-    // Close all client connections
     for (std::map<int, ClientConnection *>::iterator it = clientConnections.begin();
          it != clientConnections.end(); ++it)
     {
         std::cout << "Closing client socket " << it->first << std::endl;
-        delete it->second;  // Destructor will close the FD
+        delete it->second;
     }
     clientConnections.clear();
 }

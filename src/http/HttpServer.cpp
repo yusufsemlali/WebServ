@@ -53,9 +53,8 @@ void HttpServer::run()
             break;
         }
 
-        // Check for timed-out CGI operations
         checkCgiTimeouts();
-        // handleTimeout();
+        handleTimeout();
         
         for (int i = 0; i < eventCount; ++i)
         {
@@ -166,7 +165,6 @@ void HttpServer::handleNewConnection(int serverFd)
 #endif
 
     connections[clientFd] = new ClientConnection(clientFd, clientAddr, requestHandler);
-    // TODO : change this to automatic allocation. 
     
     connections[clientFd]->setServerFd(serverFd);    
 
@@ -390,7 +388,6 @@ void HttpServer::checkCgiTimeouts()
         }
     }
     
-    // Handle timed-out CGI operations
     for (size_t i = 0; i < timedOutCgiFds.size(); ++i)
     {
         int cgiFd = timedOutCgiFds[i];
@@ -423,5 +420,32 @@ void HttpServer::checkCgiTimeouts()
                 eventLoop.modify(conn->getSocketFd(), EPOLLIN | EPOLLOUT);
             }
         }
+    }
+}
+
+void HttpServer::handleTimeout()
+{
+    static const int CLIENT_TIMEOUT_SECONDS = 10;
+    
+    std::vector<int> timedOutClients;
+    
+    for (std::map<int, ClientConnection*>::iterator it = connections.begin(); 
+         it != connections.end(); ++it)
+    {
+        ClientConnection* conn = it->second;
+        
+        if (conn->isTimedOut(CLIENT_TIMEOUT_SECONDS))
+        {
+#ifdef VERBOSE_LOGGING
+            std::cout << "Client timeout detected for FD " << it->first << " after " 
+                      << CLIENT_TIMEOUT_SECONDS << " seconds of inactivity" << std::endl;
+#endif
+            timedOutClients.push_back(it->first);
+        }
+    }
+    
+    for (size_t i = 0; i < timedOutClients.size(); ++i)
+    {
+        closeConnection(timedOutClients[i]);
     }
 }

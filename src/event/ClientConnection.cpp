@@ -156,14 +156,35 @@ int ClientConnection::getServerFd() const
     return serverFd;
 }
 
+size_t ClientConnection::findHeaderEnd(const std::string& buffer, size_t& headerEndLen) const
+{
+    size_t pos = buffer.find("\r\n\r\n");
+    if (pos != std::string::npos)
+    {
+        headerEndLen = 4;
+        return pos;
+    }
+    
+    pos = buffer.find("\n\n");
+    if (pos != std::string::npos)
+    {
+        headerEndLen = 2;
+        return pos;
+    }
+    
+    return std::string::npos;
+}
+
 bool ClientConnection::hasCompleteHeaders() const
 {
-    return readBuffer.find("\r\n\r\n") != std::string::npos;
+    size_t headerEndLen = 0;
+    return findHeaderEnd(readBuffer, headerEndLen) != std::string::npos;
 }
 
 bool ClientConnection::hasCompleteRequest() const
 {
-    size_t headerEnd = readBuffer.find("\r\n\r\n");
+    size_t headerEndLen = 0;
+    size_t headerEnd = findHeaderEnd(readBuffer, headerEndLen);
     if (headerEnd == std::string::npos)
         return false;
     
@@ -185,7 +206,7 @@ bool ClientConnection::hasCompleteRequest() const
                 return bodyBuffer.isComplete();
             }
             
-            size_t bodyStart = headerEnd + 4; 
+            size_t bodyStart = headerEnd + headerEndLen; 
             size_t bodyLength = readBuffer.length() - bodyStart;
             
             if (bodyLength < contentLength)
@@ -301,7 +322,8 @@ bool ClientConnection::processReadBuffer()
         
         headersValidated = true;
         
-        size_t headerEnd = readBuffer.find("\r\n\r\n");
+        size_t headerEndLen = 0;
+        size_t headerEnd = findHeaderEnd(readBuffer, headerEndLen);
         size_t contentLengthPos = readBuffer.find("Content-Length:");
         if (contentLengthPos != std::string::npos && contentLengthPos < headerEnd)
         {
@@ -309,8 +331,12 @@ bool ClientConnection::processReadBuffer()
             while (valueStart < headerEnd && (readBuffer[valueStart] == ' ' || readBuffer[valueStart] == '\t'))
                 valueStart++;
             
+            // Find end of Content-Length line (support both CRLF and LF)
             size_t valueEnd = readBuffer.find("\r\n", valueStart);
-            if (valueEnd != std::string::npos)
+            if (valueEnd == std::string::npos || valueEnd > headerEnd)
+                valueEnd = readBuffer.find("\n", valueStart);
+            
+            if (valueEnd != std::string::npos && valueEnd <= headerEnd)
             {
                 std::string contentLengthStr = readBuffer.substr(valueStart, valueEnd - valueStart);
                 size_t expectedBodySize = static_cast<size_t>(atoi(contentLengthStr.c_str()));
@@ -322,7 +348,7 @@ bool ClientConnection::processReadBuffer()
                     return true;
                 }
                 
-                size_t bodyStart = headerEnd + 4;
+                size_t bodyStart = headerEnd + headerEndLen;
                 if (readBuffer.length() > bodyStart)
                 {
                     size_t bodyInBuffer = readBuffer.length() - bodyStart;

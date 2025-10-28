@@ -1,6 +1,6 @@
 #include "EventLoop.hpp"
 
-#include <unistd.h>  // For close()
+#include <unistd.h>
 
 #include <cerrno>
 #include <cstring>

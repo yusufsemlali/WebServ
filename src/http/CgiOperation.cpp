@@ -191,7 +191,6 @@ char** CgiOperation::createCgiEnvironment(const HttpRequest& request)
     envVars.push_back("DOCUMENT_ROOT=" + documentRoot);
     envVars.push_back("REDIRECT_STATUS=CGI");
     
-    // Pass client max body size to CGI scripts
     std::ostringstream maxBodySize;
     maxBodySize << clientMaxBodySize;
     envVars.push_back("CLIENT_MAX_BODY_SIZE=" + maxBodySize.str());
@@ -213,14 +212,12 @@ char** CgiOperation::createCgiEnvironment(const HttpRequest& request)
         envVars.push_back("CONTENT_LENGTH=" + contentLength.str());
     }
     
-    // Pass all HTTP headers as HTTP_* environment variables (CGI spec requirement)
     const std::map<std::string, std::string>& headers = request.getHeaders();
     for (std::map<std::string, std::string>::const_iterator it = headers.begin(); 
          it != headers.end(); ++it) {
         std::string headerName = it->first;
         std::string headerValue = it->second;
         
-        // Convert header name to CGI format: "User-Agent" -> "HTTP_USER_AGENT"
         for (size_t i = 0; i < headerName.length(); ++i) {
             if (headerName[i] == '-') {
                 headerName[i] = '_';
@@ -229,7 +226,6 @@ char** CgiOperation::createCgiEnvironment(const HttpRequest& request)
             }
         }
         
-        // Skip Content-Type and Content-Length (already handled above)
         if (headerName != "CONTENT_TYPE" && headerName != "CONTENT_LENGTH") {
             envVars.push_back("HTTP_" + headerName + "=" + headerValue);
         }
@@ -283,9 +279,9 @@ void CgiOperation::readFromProcess()
         readBuffer[bytesRead] = '\0';
         result += std::string(readBuffer, bytesRead);
     } else if (bytesRead == 0) {
-        // EOF - CGI closed its output
+        return;
     } else {
-        // Error reading from CGI
+        return;
     }
 }
 

@@ -6,7 +6,6 @@
 #include "Config.hpp"
 #include "Lexer.hpp"
 
-// Entry point function for parsing config files
 Config parse(const std::string &filePath);
 
 class Parser
@@ -21,7 +20,6 @@ class Parser
 	const std::vector<Token> &tokens;
 	size_t current;
 
-	// Helper methods
 	bool isAtEnd() const;
 	Token peek() const;
 	Token previous() const;
@@ -30,11 +28,9 @@ class Parser
 	bool match(TokenType::e type);
 	void consume(TokenType::e type, const std::string &message);
 
-	// Parsing methods
 	Config::ServerConfig parseServer();
 	Config::LocationConfig parseLocation();
 	void parseDirective(std::map<std::string, std::vector<std::string> > &directives);
 
-	// Error handling
 	void error(const std::string &message) const;
 };

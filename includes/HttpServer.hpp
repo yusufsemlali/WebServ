@@ -39,6 +39,7 @@ class HttpServer
 
     void closeConnection(int clientFd);
     void checkCgiTimeouts();
+    void handleTimeout();
     
     bool isServerSocket(int fd) const;
     bool isCgiSocket(int fd) const;

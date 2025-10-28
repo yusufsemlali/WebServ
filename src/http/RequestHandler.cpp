@@ -249,7 +249,7 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
         
         if (fileExists(filePath) && isDirectory(filePath))
         {
-            serveErrorPage(409, response, server);  // Conflict: path is a directory
+            serveErrorPage(409, response, server);  
             return;
         }
         
@@ -329,7 +329,6 @@ void RequestHandler::serveStaticFile(const std::string &filePath, HttpResponse &
     response.setBody(oss.str());
     response.setHeader("Content-Type", mimeType);
     
-    // Add X-Upload-Max-Size header with current location's client_max_body_size
     size_t maxSize = location.clientMaxBodySize ? location.clientMaxBodySize : server.clientMaxBodySize;
     std::ostringstream ss;
     ss << maxSize;
@@ -420,7 +419,6 @@ void RequestHandler::serveErrorPage(int errorCode, HttpResponse &response, const
             std::string errorPagePath = server.errorPages[i].filePath;
             if (fileExists(errorPagePath))
             {
-                // Create a minimal location config for error pages
                 static Config::LocationConfig errorLoc;
                 errorLoc.clientMaxBodySize = 0;
                 serveStaticFile(errorPagePath, response, errorLoc, server);
@@ -573,7 +571,6 @@ void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &
     }
     std::string boundaryDelimiter = "--" + boundary;
     
-    // Find the file part
     size_t partStart = body.find(boundaryDelimiter);
     if (partStart == std::string::npos)
     {
@@ -592,7 +589,6 @@ void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &
     
     std::string part = body.substr(partStart, partEnd - partStart);
     
-    // Extract filename from Content-Disposition header
     std::string filename;
     size_t filenamePos = part.find("filename=\"");
     if (filenamePos != std::string::npos)
@@ -607,7 +603,6 @@ void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &
         filename = "upload_" + getCurrentTimestamp();
     }
     
-    // Extract file content (after headers)
     size_t contentStart = part.find("\r\n\r\n");
     if (contentStart == std::string::npos)
     {
@@ -626,7 +621,6 @@ void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &
         return;
     }
     
-    // Extract content (remove trailing \r\n before boundary)
     std::string fileContent = part.substr(contentStart);
     if (fileContent.length() >= 2 && fileContent.substr(fileContent.length() - 2) == "\r\n")
     {
@@ -635,7 +629,6 @@ void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &
     
     std::string fullPath = uploadDir + "/" + filename;
     
-    // Save file in binary mode to support all file types (images, etc.)
     std::ofstream file(fullPath.c_str(), std::ios::binary);
     if (!file.is_open())
     {
@@ -782,19 +775,16 @@ std::string RequestHandler::getMimeType(const std::string &filePath) const
 bool RequestHandler::isMethodAllowed(const std::string &method, const Config::LocationConfig &location, 
                                      const Config::ServerConfig &server) const
 {
-    // If location has explicit methods directive, use it
     if (!location.allowedMethods.empty())
     {
         return location.allowedMethods.find(method) != location.allowedMethods.end();
     }
     
-    // Otherwise, inherit from server-level methods
     if (!server.allowedMethods.empty())
     {
         return server.allowedMethods.find(method) != server.allowedMethods.end();
     }
     
-    // Default: only allow safe methods (GET and HEAD) - DO NOT allow POST/DELETE by default
     return (method == "GET" || method == "HEAD");
 }
 
@@ -937,7 +927,6 @@ std::string RequestHandler::urlDecode(const std::string &str) const
         }
         else if (str[i] == '+' && inQuery)
         {
-            // Only decode + to space in query strings, not in paths
             result += ' ';
         }
         else
@@ -946,7 +935,6 @@ std::string RequestHandler::urlDecode(const std::string &str) const
         }
     }
     
-    // SECURITY: Check for path traversal AFTER decoding
     if (result.find("..") != std::string::npos)
     {
         std::cerr << "Security: Path traversal attempt blocked in decoded URI: " << result << std::endl;

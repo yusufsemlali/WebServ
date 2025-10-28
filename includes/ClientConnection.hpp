@@ -9,14 +9,13 @@
 #include "RequestHandler.hpp"
 #include "AsyncOperation.hpp"
 
-// Connection state machine
 enum ConnectionState {
-    READING_REQUEST,     // Reading HTTP request from client
-    PROCESSING_REQUEST,  // Request complete, being processed
-    WAITING_ASYNC,       // Waiting for async operation (CGI, etc.)
-    WRITING_RESPONSE,    // Writing response to client
-    KEEP_ALIVE,          // Waiting for next request on keep-alive connection
-    CLOSING              // Connection being closed
+    READING_REQUEST,     
+    PROCESSING_REQUEST,  
+    WAITING_ASYNC,       
+    WRITING_RESPONSE,    
+    KEEP_ALIVE,          
+    CLOSING              
 };
 
 struct RequestContext {
@@ -105,6 +104,7 @@ class ClientConnection
     RequestBodyBuffer bodyBuffer;
 
     bool processReadBuffer();
+    size_t findHeaderEnd(const std::string& buffer, size_t& headerEndLen) const;
     void serveStaticFile(const std::string &requestPath);
     std::string getContentType(const std::string &filePath);
     void serve404();
