@@ -266,6 +266,11 @@ size_t ClientConnection::getBytesWritten() const
     return bytesWritten;
 }
 
+std::string ClientConnection::getRequestBodyTempFile() const
+{
+    return bodyBuffer.getTempFilePath();
+}
+
 bool ClientConnection::processReadBuffer()
 {
     if (!hasCompleteHeaders())
@@ -343,14 +348,7 @@ bool ClientConnection::processReadBuffer()
         return false;
     }
 
-    std::string fullRequest = readBuffer;
-    if (bodyBuffer.isBufferingToDisk())
-    {
-        std::string body = bodyBuffer.getBody();
-        fullRequest += body;
-    }
-
-    if (context.request.parseRequest(fullRequest))
+    if (context.request.parseRequest(readBuffer))
     {
         context.response.reset();
         setState(PROCESSING_REQUEST);

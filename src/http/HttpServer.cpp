@@ -370,7 +370,7 @@ void HttpServer::handleCgiError(int cgiFd)
 
 void HttpServer::checkCgiTimeouts()
 {
-    static const int CGI_TIMEOUT_SECONDS = 5;
+    static const int CGI_TIMEOUT_SECONDS = 30;
     
     std::vector<int> timedOutCgiFds;
     

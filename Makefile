@@ -1,7 +1,7 @@
 # Project Names
 NAME         := webserv
 BONUS_NAME   := webserv_bonus
-CONFIG_FILE := configs/test.conf
+CONFIG_FILE := configs/default.conf
 # Compiler Settings
 CXX          := g++
 CXXFLAGS     := -Wall -Wextra -Werror -std=c++98 -ggdb
@@ -128,44 +128,9 @@ valgrind: all
 		--track-origins=yes \
 		--track-fds=yes \
 		--trace-children=yes \
-		--log-file=valgrind.log \
-		--suppressions=cgi.supp \
-		./$(NAME) 
-
-# More comprehensive valgrind check for webserv-specific issues
-valgrind-full: CXXFLAGS += -g -O0
-valgrind-full: all
-	valgrind --tool=memcheck \
-		--leak-check=full \
-		--show-leak-kinds=all \
-		--track-origins=yes \
-		--track-fds=yes \
-		--trace-children=yes \
-		--show-reachable=yes \
-		--malloc-fill=0x42 \
-		--free-fill=0x69 \
-		--verbose \
-		--log-file=valgrind-full.log \
-		--error-exitcode=1 \
-		--suppressions=valgrind.supp \
-		--suppressions=cgi.supp \
-		--gen-suppressions=all \
-		./$(NAME) 
-
-# Helgrind for threading issues (if using threads)
-valgrind-helgrind: CXXFLAGS += -g -O0
-valgrind-helgrind: all
-	valgrind --tool=helgrind \
-		--track-lockorders=yes \
-		--history-level=full \
-		--conflict-cache-size=16777216 \
-		--log-file=helgrind.log \
-		./$(NAME) $(CONFIG_FILE)
-
-# Analyze valgrind output
-analyze-valgrind:
-	@./analyze_valgrind.sh
-
+		--suppressions=$(HOME)/.var/valgrind_log/cgi.supp \
+		--suppressions=$(HOME)/.var/valgrind_log/valgrind.supp \
+		./$(NAME)
 
 .PHONY: all debug verbose bonus clean fclean re sanitize valgrind valgrind-full valgrind-helgrind analyze-valgrind
 .SECONDARY: $(OBJS)

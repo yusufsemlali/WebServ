@@ -78,11 +78,25 @@ bool RequestBodyBuffer::writeChunkToDisk(const char* data, size_t size)
         return false;
     }
     
-    ssize_t written = write(tempFileFd, data, size);
-    if (written < 0 || static_cast<size_t>(written) != size)
+    size_t totalWritten = 0;
+    while (totalWritten < size)
     {
-        std::cerr << "RequestBodyBuffer: Failed to write chunk to disk" << std::endl;
-        return false;
+        ssize_t written = write(tempFileFd, data + totalWritten, size - totalWritten);
+        
+        if (written > 0)
+        {
+            totalWritten += written;
+        }
+        else if (written == 0)
+        {
+            std::cerr << "RequestBodyBuffer: write returned 0" << std::endl;
+            return false;
+        }
+        else
+        {
+            std::cerr << "RequestBodyBuffer: Failed to write chunk to disk" << std::endl;
+            return false;
+        }
     }
     
     bytesReceived += size;

@@ -13,7 +13,7 @@ public:
     CgiOperation(const std::string& scriptPath, const std::string& interpreterPath, 
                  const HttpRequest& request, const std::string& documentRoot = "./www",
                  const std::string& serverPort = "8080", const std::string& clientAddr = "127.0.0.1",
-                 size_t clientMaxBodySize = 0);
+                 size_t clientMaxBodySize = 0, const std::string& tempFilePath = "");
     virtual ~CgiOperation();
     
     bool isComplete() const;
@@ -37,6 +37,9 @@ private:
     std::string result;
     std::string errorMessage;
     std::string postData;
+    std::string tempFilePath;
+    int tempFileFd;
+    size_t tempFileBytesWritten;
     
     std::string scriptPath;
     std::string interpreterPath;

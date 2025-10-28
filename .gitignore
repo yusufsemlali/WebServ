@@ -47,3 +47,7 @@ webserv
 .cache/
 
 .clang-format
+
+# ignore test folder 
+tests/
+tests/*

@@ -77,6 +77,8 @@ class ClientConnection
     bool canRead() const;
     bool canWrite() const;
     bool isReadyForCleanup() const;
+    
+    std::string getRequestBodyTempFile() const;
 
    private:
     int socketFd;

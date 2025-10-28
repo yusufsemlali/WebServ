@@ -13,15 +13,20 @@
 CgiOperation::CgiOperation(const std::string& scriptPath, const std::string& interpreterPath, 
                            const HttpRequest& request, const std::string& documentRoot,
                            const std::string& serverPort, const std::string& clientAddr,
-                           size_t clientMaxBodySize)
+                           size_t clientMaxBodySize, const std::string& tempFilePath)
     : childPid(-1), outputFd(-1), inputFd(-1), errorFd(-1),
       completed(false), error(false), 
+      tempFilePath(tempFilePath), tempFileFd(-1), tempFileBytesWritten(0),
       scriptPath(scriptPath), interpreterPath(interpreterPath), documentRoot(documentRoot),
       serverPort(serverPort), clientAddress(clientAddr), clientMaxBodySize(clientMaxBodySize)
 {
     
     if (request.getMethod() == "POST") {
-        postData = request.getBody();
+        if (!tempFilePath.empty()) {
+            tempFileFd = open(tempFilePath.c_str(), O_RDONLY);
+        } else {
+            postData = request.getBody();
+        }
     }
     
     if (!startCgiProcess(request)) {
@@ -55,8 +60,9 @@ void CgiOperation::handleData()
 {
     if (completed) return;
 
-    if (!postData.empty() && inputFd >= 0) {
+    while ((tempFileFd >= 0 || !postData.empty()) && inputFd >= 0) {
         writePostData();
+        if (inputFd < 0) break;
     }
 
     readFromProcess();
@@ -89,6 +95,10 @@ void CgiOperation::cleanup()
     if (errorFd >= 0) {
         close(errorFd);
         errorFd = -1;
+    }
+    if (tempFileFd >= 0) {
+        close(tempFileFd);
+        tempFileFd = -1;
     }
     
     if (childPid > 0) {
@@ -153,7 +163,7 @@ bool CgiOperation::startCgiProcess(const HttpRequest& request)
     inputFd = pipeStdin[1];
     errorFd = pipeStderr[0];
     
-    if (!setNonBlocking(outputFd) || !setNonBlocking(inputFd) || !setNonBlocking(errorFd)) {
+    if (!setNonBlocking(outputFd) || !setNonBlocking(errorFd)) {
         std::cerr << "CgiOperation: Failed to set non-blocking mode" << std::endl;
         return false;
     }
@@ -193,8 +203,13 @@ char** CgiOperation::createCgiEnvironment(const HttpRequest& request)
         }
         envVars.push_back("CONTENT_TYPE=" + contentType);
         
+        size_t bodyLength = postData.length();
+        if (bodyLength == 0 && tempFileFd >= 0) {
+            bodyLength = request.getContentLength();
+        }
+        
         std::ostringstream contentLength;
-        contentLength << postData.length();
+        contentLength << bodyLength;
         envVars.push_back("CONTENT_LENGTH=" + contentLength.str());
     }
     
@@ -269,24 +284,71 @@ void CgiOperation::readFromProcess()
         result += std::string(readBuffer, bytesRead);
     } else if (bytesRead == 0) {
         // EOF - CGI closed its output
+    } else {
+        // Error reading from CGI
     }
 }
 
 void CgiOperation::writePostData()
 {
-    if (postData.empty() && inputFd < 0) return;
+    if (inputFd < 0) return;
     
-    if (!postData.empty() && inputFd >= 0) {
-        ssize_t bytesWritten = write(inputFd, postData.c_str(), postData.length());
+    if (tempFileFd >= 0) {
+        char buffer[BUFFER_SIZE];
+        ssize_t bytesRead = read(tempFileFd, buffer, BUFFER_SIZE);
         
-        if (bytesWritten > 0) {
-            postData.erase(0, bytesWritten);
+        if (bytesRead > 0) {
+            size_t totalWritten = 0;
+            while (totalWritten < (size_t)bytesRead) {
+                ssize_t bytesWritten = write(inputFd, buffer + totalWritten, bytesRead - totalWritten);
+                
+                if (bytesWritten > 0) {
+                    totalWritten += bytesWritten;
+                    tempFileBytesWritten += bytesWritten;
+                } else if (bytesWritten == 0) {
+                    break;
+                } else {
+                    close(inputFd);
+                    inputFd = -1;
+                    close(tempFileFd);
+                    tempFileFd = -1;
+                    return;
+                }
+            }
+        } else if (bytesRead == 0) {
+            close(inputFd);
+            inputFd = -1;
+            close(tempFileFd);
+            tempFileFd = -1;
+        } else {
+            close(inputFd);
+            inputFd = -1;
+            close(tempFileFd);
+            tempFileFd = -1;
+        }
+    }
+    else if (!postData.empty()) {
+        size_t totalWritten = 0;
+        while (totalWritten < postData.length()) {
+            ssize_t bytesWritten = write(inputFd, postData.c_str() + totalWritten, 
+                                         postData.length() - totalWritten);
             
-            if (postData.empty() && inputFd >= 0) {
+            if (bytesWritten > 0) {
+                totalWritten += bytesWritten;
+            } else if (bytesWritten == 0) {
+                break;
+            } else {
                 close(inputFd);
                 inputFd = -1;
+                return;
             }
-        } else if (bytesWritten <= 0) {
+        }
+        
+        if (totalWritten > 0) {
+            postData.erase(0, totalWritten);
+        }
+        
+        if (postData.empty()) {
             close(inputFd);
             inputFd = -1;
         }

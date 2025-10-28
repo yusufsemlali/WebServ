@@ -46,7 +46,8 @@ private:
                    ClientConnection* connection = NULL);
     void handleRedirect(HttpResponse &response, const Config::LocationConfig &location);
     void handleFileUpload(const HttpRequest &request, HttpResponse &response, 
-                         const Config::ServerConfig &server, const Config::LocationConfig &location);
+                         const Config::ServerConfig &server, const Config::LocationConfig &location,
+                         ClientConnection* connection = NULL);
     void handleFormData(const HttpRequest &request, HttpResponse &response);
 
     const Config::ServerConfig &findServerConfig(const HttpRequest &request, int serverFd) const;

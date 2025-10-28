@@ -231,7 +231,7 @@ void RequestHandler::processPostRequest(const HttpRequest &request, HttpResponse
     
     if (contentType.find("multipart/form-data") != std::string::npos)
     {
-        handleFileUpload(request, response, server, location);
+        handleFileUpload(request, response, server, location, connection);
     }
     else if (contentType == "application/x-www-form-urlencoded")
     {
@@ -491,14 +491,18 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
     
     std::string clientAddr = connection->getClientAddress();
     
-    // Get client max body size from location config, fallback to server config
     size_t clientMaxBodySize = location.clientMaxBodySize;
     if (clientMaxBodySize == 0) {
         clientMaxBodySize = server.clientMaxBodySize;
     }
     
+    std::string tempFilePath;
+    if (connection && request.getMethod() == "POST") {
+        tempFilePath = connection->getRequestBodyTempFile();
+    }
+    
     CgiOperation* cgiOp = new CgiOperation(scriptPath, interpreterPath, request, documentRoot, 
-                                           serverPort, clientAddr, clientMaxBodySize);
+                                           serverPort, clientAddr, clientMaxBodySize, tempFilePath);
     
     if (cgiOp->hasError()) {
         std::cerr << "CGI: Failed to start CGI operation: " << cgiOp->getError() << std::endl;
@@ -513,14 +517,20 @@ void RequestHandler::executeCgi(const HttpRequest &request, HttpResponse &respon
 }
 
 void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &response, 
-                                    const Config::ServerConfig &server, const Config::LocationConfig &location)
+                                    const Config::ServerConfig &server, const Config::LocationConfig &location,
+                                    ClientConnection* connection)
 {
     std::string uploadDir = location.root.empty() ? server.root : location.root;
     uploadDir += "/uploads";
     
     mkdir(uploadDir.c_str(), 0755);
     
-    // Parse multipart/form-data
+    std::string tempFilePath;
+    if (connection)
+    {
+        tempFilePath = connection->getRequestBodyTempFile();
+    }
+    
     std::string contentType = request.getContentType();
     std::string boundary;
     
@@ -540,7 +550,27 @@ void RequestHandler::handleFileUpload(const HttpRequest &request, HttpResponse &
         return;
     }
     
-    std::string body = request.getBody();
+    std::string body;
+    if (!tempFilePath.empty())
+    {
+        std::ifstream file(tempFilePath.c_str(), std::ios::binary);
+        if (file.is_open())
+        {
+            std::ostringstream oss;
+            oss << file.rdbuf();
+            body = oss.str();
+            file.close();
+        }
+        else
+        {
+            serveErrorPage(500, response, server);
+            return;
+        }
+    }
+    else
+    {
+        body = request.getBody();
+    }
     std::string boundaryDelimiter = "--" + boundary;
     
     // Find the file part
