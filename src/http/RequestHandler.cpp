@@ -164,6 +164,14 @@ void RequestHandler::processGetRequest(const HttpRequest &request, HttpResponse 
 
     if (isDirectory(filePath))
     {
+        if (uri.length() > 0 && uri[uri.length() - 1] != '/')
+        {
+            response.setStatus(301, "Moved Permanently");
+            response.setHeader("Location", uri + "/");
+            response.setBody("");
+            return;
+        }
+        
         std::string indexFile = location.index.empty() ? server.index : location.index;
         if (indexFile.empty())
             indexFile = "index.html";

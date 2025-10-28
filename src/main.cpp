@@ -6,7 +6,7 @@
 #include "debug.hpp"
 #endif
 
-int main(void)
+int main(int argc, char **argv)
 {
     signal(SIGINT, signalHandler);
     signal(SIGTERM, signalHandler);
@@ -15,7 +15,11 @@ int main(void)
 
     try
     {
-        const std::string configFilePath = "configs/default.conf";
+        std::string configFilePath = "configs/default.conf";
+        if (argc > 1)
+        {
+            configFilePath = argv[1];
+        }
         Config config = parse(configFilePath);
 
 #ifdef VERBOSE_LOGGING

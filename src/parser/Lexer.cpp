@@ -1,5 +1,4 @@
 #include "Lexer.hpp"
-#include <iostream>
 
 static std::set<std::string> initDirectives()
 {
@@ -13,19 +12,10 @@ static std::set<std::string> initDirectives()
         directives.insert("return");
         directives.insert("server_name");
         directives.insert("client_max_body_size");
-        directives.insert("access_log");
-        directives.insert("error_log");
-        directives.insert("proxy_pass");
-        directives.insert("try_files");
-        directives.insert("rewrite");
-        directives.insert("ssl_certificate");
-        directives.insert("ssl_certificate_key");
         directives.insert("autoindex");
-        directives.insert("alias");
         directives.insert("methods");
         directives.insert("client_size");
         directives.insert("cgi_pass");
-        // Add other directives here
         return directives;
 }
 

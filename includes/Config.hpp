@@ -79,6 +79,8 @@ class Config
     void validateAutoindexValue(const std::string &value);
     void validateReturnValue(const std::string &value);
     void validateCgiPath(const std::string &path);
+    void validateDuplicateListenAddresses(const std::vector<ListenConfig> &listenConfigs);
+    void validateLocationRedirects(const ServerConfig &server);
 
     // Helper parsing methods
     ListenConfig parseListenDirective(const std::string &value);
@@ -94,6 +96,7 @@ class Config
     bool isValidHostname(const std::string &host);
     bool isValidFilePath(const std::string &path);
     bool isValidUrl(const std::string &url);
+    bool isValidReturnValue(const std::string &value);
 
     // Error handling
     void throwValidationError(const std::string &directive, const std::string &value, const std::string &reason);

@@ -47,6 +47,8 @@ void Config::parseServerConfig(ServerConfig &server)
                 server.listenConfigs.push_back(defaultConfig);
         }
 
+        validateDuplicateListenAddresses(server.listenConfigs);
+
         if (server.directives.find("server_name") != server.directives.end())
         {
                 server.serverNames = server.directives["server_name"];
@@ -98,6 +100,8 @@ void Config::parseServerConfig(ServerConfig &server)
         {
                 parseLocationConfig(server.locations[i]);
         }
+
+        validateLocationRedirects(server);
 }
 
 void Config::parseLocationConfig(LocationConfig &location)
@@ -266,11 +270,11 @@ void Config::validateDirectiveValues(const std::string &directive, const std::ve
                         validateServerName(values[i]);
                 }
         }
-        else if (directive == "root" || directive == "alias")
+        else if (directive == "root")
         {
                 if (values.size() != 1)
                 {
-                        throwValidationError(directive, "", directive + " directive must have exactly one value");
+                        throwValidationError(directive, "", "root directive must have exactly one value");
                 }
                 validateFilePath(values[0]);
         }
@@ -458,9 +462,9 @@ void Config::validateAutoindexValue(const std::string &value)
 
 void Config::validateReturnValue(const std::string &value)
 {
-        if (!isValidUrl(value))
+        if (!isValidReturnValue(value))
         {
-                throwValidationError("return", value, "return value must be a valid URL");
+                throwValidationError("return", value, "return value must be a valid URL or path starting with '/'");
         }
 }
 
@@ -472,7 +476,60 @@ void Config::validateCgiPath(const std::string &path)
         }
         if (path[0] != '.' && path[1] != '/')
         {
-                throwValidationError("cgi_pass", path, "CGI path must be a relative path starting with './'");
+                throwValidationError("cgi_pass", path, "CGI path must be a relative path starting with './'" );
+        }
+}
+
+void Config::validateDuplicateListenAddresses(const std::vector<ListenConfig> &listenConfigs)
+{
+        std::set<std::string> seenAddresses;
+        std::map<std::string, std::vector<std::string> > portToHosts;
+        
+        for (size_t i = 0; i < listenConfigs.size(); ++i)
+        {
+                const std::string &host = listenConfigs[i].host;
+                const std::string &port = listenConfigs[i].port;
+                std::string addressKey = host + ":" + port;
+                
+                if (seenAddresses.find(addressKey) != seenAddresses.end())
+                {
+                        throwValidationError("listen", addressKey, 
+                                "duplicate listen directive with same IP:port combination");
+                }
+                
+                seenAddresses.insert(addressKey);
+                portToHosts[port].push_back(host);
+        }
+        
+        for (std::map<std::string, std::vector<std::string> >::iterator it = portToHosts.begin();
+             it != portToHosts.end(); ++it)
+        {
+                const std::string &port = it->first;
+                const std::vector<std::string> &hosts = it->second;
+                
+                if (hosts.size() > 1)
+                {
+                        bool hasWildcard = false;
+                        bool hasSpecific = false;
+                        
+                        for (size_t i = 0; i < hosts.size(); ++i)
+                        {
+                                if (hosts[i] == "0.0.0.0")
+                                {
+                                        hasWildcard = true;
+                                }
+                                else
+                                {
+                                        hasSpecific = true;
+                                }
+                        }
+                        
+                        if (hasWildcard && hasSpecific)
+                        {
+                                throwValidationError("listen", "port " + port,
+                                        "wildcard address 0.0.0.0 conflicts with specific IP address on same port");
+                        }
+                }
         }
 }
 
@@ -531,6 +588,58 @@ bool Config::isValidFilePath(const std::string &path)
 bool Config::isValidUrl(const std::string &url)
 {
         return (url.find("http://") == 0 || url.find("https://") == 0);
+}
+
+bool Config::isValidReturnValue(const std::string &value)
+{
+        return isValidUrl(value) || (value.length() > 0 && value[0] == '/');
+}
+
+void Config::validateLocationRedirects(const ServerConfig &server)
+{
+        const std::vector<LocationConfig> &locations = server.locations;
+        
+        for (size_t i = 0; i < locations.size(); ++i)
+        {
+                const std::string &returnUrl = locations[i].returnUrl;
+                
+                if (returnUrl.empty() || isValidUrl(returnUrl))
+                        continue;
+                
+                std::set<std::string> visitedPaths;
+                std::string currentPath = locations[i].path;
+                std::string nextPath = returnUrl;
+                
+                visitedPaths.insert(currentPath);
+                
+                while (!nextPath.empty())
+                {
+                        if (visitedPaths.find(nextPath) != visitedPaths.end())
+                        {
+                                throwValidationError("return", locations[i].path,
+                                        "circular redirect detected: " + locations[i].path + " -> ... -> " + nextPath);
+                        }
+                        
+                        visitedPaths.insert(nextPath);
+                        
+                        const LocationConfig *nextLocation = NULL;
+                        for (size_t j = 0; j < locations.size(); ++j)
+                        {
+                                if (locations[j].path == nextPath)
+                                {
+                                        nextLocation = &locations[j];
+                                        break;
+                                }
+                        }
+                        
+                        if (!nextLocation || nextLocation->returnUrl.empty() || isValidUrl(nextLocation->returnUrl))
+                        {
+                                break;
+                        }
+                        
+                        nextPath = nextLocation->returnUrl;
+                }
+        }
 }
 
 void Config::throwValidationError(const std::string &directive, const std::string &value, const std::string &reason)

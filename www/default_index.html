@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to WebServ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 60px 40px;
+            max-width: 600px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 3em;
+            color: #667eea;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        h2 {
+            font-size: 1.5em;
+            color: #666;
+            margin-bottom: 30px;
+            font-weight: 400;
+        }
+        p {
+            font-size: 1.1em;
+            color: #777;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .info {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 30px 0;
+            text-align: left;
+            border-radius: 4px;
+        }
+        .info h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+        .info ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .info li {
+            padding: 8px 0;
+            color: #555;
+        }
+        .info li:before {
+            content: "✓ ";
+            color: #667eea;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 0.9em;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e83e8c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to WebServ</h1>
+        <h2>Your HTTP Server is Running!</h2>
+        
+        <p>This is the default index page. It appears when no <code>index.html</code> file is found in the requested directory.</p>
+        
+        <div class="info">
+            <h3>Server Features</h3>
+            <ul>
+                <li>HTTP/1.1 Protocol Support</li>
+                <li>GET, POST, DELETE Methods</li>
+                <li>CGI Script Execution</li>
+                <li>File Upload Support</li>
+                <li>Directory Listing (autoindex)</li>
+                <li>Custom Error Pages</li>
+                <li>Virtual Host Support</li>
+            </ul>
+        </div>
+        
+        <p>To customize this page, create an <code>index.html</code> file in your document root or configure a custom index file in your server configuration.</p>
+        
+        <div class="footer">
+            WebServ - C++ HTTP Server | Built with ❤️
+        </div>
+    </div>
+</body>
+</html>
