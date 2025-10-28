@@ -152,7 +152,19 @@ void Config::parseLocationConfig(LocationConfig &location)
 
         if (location.directives.find("return") != location.directives.end())
         {
-                location.returnUrl = location.directives["return"].back();
+                const std::vector<std::string> &returnValues = location.directives["return"];
+                if (returnValues.size() == 1)
+                {
+                        // Old syntax: return URL
+                        location.returnUrl = returnValues[0];
+                        location.returnStatusCode = 302;  // Default redirect
+                }
+                else if (returnValues.size() == 2)
+                {
+                        // New syntax: return STATUS URL
+                        location.returnStatusCode = std::atoi(returnValues[0].c_str());
+                        location.returnUrl = returnValues[1];
+                }
         }
 
         if (location.directives.find("error_page") != location.directives.end())
@@ -378,11 +390,25 @@ void Config::validateDirectiveValues(const std::string &directive, const std::ve
         }
         else if (directive == "return")
         {
-                if (values.size() != 1)
+                if (values.size() < 1 || values.size() > 2)
                 {
-                        throwValidationError(directive, "", "return directive must have exactly one value");
+                        throwValidationError(directive, "", "return directive must have 1 or 2 values");
                 }
-                validateReturnValue(values[0]);
+                if (values.size() == 1)
+                {
+                        // Single value: URL or path
+                        validateReturnValue(values[0]);
+                }
+                else if (values.size() == 2)
+                {
+                        // Two values: status code + URL/path
+                        int statusCode = std::atoi(values[0].c_str());
+                        if (statusCode < 100 || statusCode > 599)
+                        {
+                                throwValidationError(directive, values[0], "invalid HTTP status code");
+                        }
+                        validateReturnValue(values[1]);
+                }
         }
         else if (directive == "cgi_pass")
         {

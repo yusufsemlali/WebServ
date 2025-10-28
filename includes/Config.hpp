@@ -33,6 +33,7 @@ class Config
         size_t clientMaxBodySize;
         std::string cgiPass;
         std::string returnUrl;
+        int returnStatusCode;
         std::vector<ErrorPageConfig> errorPages;
     };
 

@@ -111,6 +111,7 @@ Config::ServerConfig Parser::parseServer()
 Config::LocationConfig Parser::parseLocation()
 {
         Config::LocationConfig location;
+        location.returnStatusCode = 0;
 
         consume(TokenType::DIRECTIVE, "Expected 'location' directive");
 

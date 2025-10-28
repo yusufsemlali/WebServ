@@ -671,7 +671,8 @@ std::string RequestHandler::resolveFilePath(const std::string &uri, const Config
 
 void RequestHandler::handleRedirect(HttpResponse &response, const Config::LocationConfig &location)
 {
-    response.setStatus(302, "Found");
+    int statusCode = location.returnStatusCode > 0 ? location.returnStatusCode : 302;
+    response.setStatus(statusCode, "");
     response.setHeader("Location", location.returnUrl);
     response.setBody("");
 }
