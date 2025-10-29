@@ -18,18 +18,15 @@ class SocketManager
 				void closeAllSockets();
 
 				int acceptConnection(int serverFd, struct sockaddr_in& outClientAddr);
-				void closeConnection(int clientFd);
 
 				bool setNonBlocking(int fd);
 				bool bindAndListen(int fd, const std::string &host, const std::string &port);
 
 				const std::vector<int> &getServerSockets() const;
-				const std::map<int, ClientConnection *> &getClientConnections() const;
 				const std::vector<const Config::ServerConfig *> *getServerConfigs(int serverFd) const;
 
 			 private:
 				std::vector<int> serverSockets;
-				std::map<int, ClientConnection *> clientConnections;
 				std::map<int, std::vector<const Config::ServerConfig *> > serverConfigs;
 				std::map<std::string, int> listenAddressToSocket;
 

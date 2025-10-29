@@ -89,8 +89,6 @@ void HttpServer::run()
                     if (events[i].events & EPOLLIN)
                     {
                         handleClientRead(fd); 
-                        if (connections.find(fd) == connections.end())
-                            continue;
                     }
                     if (events[i].events & EPOLLOUT)
                     {
@@ -180,7 +178,7 @@ void HttpServer::handleClientRead(int clientFd)
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
     if (it == connections.end()) 
     {
-        std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
+        std::cerr << "[handleClientRead] Client connection not found for FD: " << clientFd << std::endl;
         return;
     }
 
@@ -222,7 +220,7 @@ void HttpServer::handleClientWrite(int clientFd)
     std::map<int, ClientConnection*>::iterator it = connections.find(clientFd);
     if (it == connections.end()) 
     {
-        std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
+        std::cerr << "[handleClientWrite] Client connection not found for FD: " << clientFd << std::endl;
         return;
     }
 

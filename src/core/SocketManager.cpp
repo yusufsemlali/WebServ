@@ -10,7 +10,6 @@
 #include <cstring>
 #include <iostream>
 
-#include "ClientConnection.hpp"
 #include "Utiles.hpp"
 
 SocketManager::SocketManager()
@@ -85,22 +84,6 @@ int SocketManager::acceptConnection(int serverFd, struct sockaddr_in &outClientA
     return clientFd;
 }
 
-void SocketManager::closeConnection(int clientFd)
-{
-    std::map<int, ClientConnection *>::iterator it = clientConnections.find(clientFd);
-
-    if (it == clientConnections.end())
-    {
-        std::cerr << "Client connection not found for FD: " << clientFd << std::endl;
-        return;
-    }
-
-    ClientConnection *clientConn = it->second;
-    clientConnections.erase(it);
-
-    delete clientConn;
-}
-
 bool SocketManager::setNonBlocking(int fd)
 {
     int flags = fcntl(fd, F_GETFL, 0);
@@ -156,11 +139,6 @@ bool SocketManager::bindAndListen(int fd, const std::string &host, const std::st
 const std::vector<int> &SocketManager::getServerSockets() const
 {
     return serverSockets;
-}
-
-const std::map<int, ClientConnection *> &SocketManager::getClientConnections() const
-{
-    return clientConnections;
 }
 
 const std::vector<const Config::ServerConfig *> *SocketManager::getServerConfigs(int serverFd) const
@@ -225,12 +203,4 @@ void SocketManager::cleanup()
     serverSockets.clear();
     serverConfigs.clear();
     listenAddressToSocket.clear();
-
-    for (std::map<int, ClientConnection *>::iterator it = clientConnections.begin();
-         it != clientConnections.end(); ++it)
-    {
-        std::cout << "Closing client socket " << it->first << std::endl;
-        delete it->second;
-    }
-    clientConnections.clear();
 }

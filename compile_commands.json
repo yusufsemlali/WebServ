@@ -280,12 +280,12 @@
       "-I../../includes/",
       "-c",
       "-o",
-      "utiles.o",
-      "utiles.cpp"
+      "Utiles.o",
+      "Utiles.cpp"
     ],
     "directory": "/home/ysemlali/WebServ/src/core",
-    "file": "/home/ysemlali/WebServ/src/core/utiles.cpp",
-    "output": "/home/ysemlali/WebServ/src/core/utiles.o"
+    "file": "/home/ysemlali/WebServ/src/core/Utiles.cpp",
+    "output": "/home/ysemlali/WebServ/src/core/Utiles.o"
   },
   {
     "arguments": [
